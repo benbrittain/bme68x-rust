@@ -1,3 +1,9 @@
+// TODO work through these and remove them
+#![allow(dead_code)]
+#![allow(unused_unsafe)]
+#![allow(unused_assignments)]
+#![allow(unused_mut)]
+
 use std::process::Command;
 
 mod bme68x;
@@ -21,7 +27,7 @@ impl Interface for SpiDriver {
     fn write(&self, reg_addr: u8, reg_data: &[u8]) -> Result<(), Error> {
         let data: String = reg_data.iter().map(|b| format!("0x{:x},", b)).collect();
         let cmd = format!("s w 0x{:x} w {} u", reg_addr, data);
-        let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
+        Command::new("/home/ben/workspace/spidriver/c/build/spicl")
             .arg("/dev/ttyUSB1")
             .args(cmd.split(" "))
             .output()
