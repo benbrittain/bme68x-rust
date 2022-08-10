@@ -223,7 +223,7 @@ pub unsafe fn bme68x_set_regs<I: Interface>(
             }
             if rslt as libc::c_int == 0 as libc::c_int {
                 (*dev).intf_rslt = (*dev).intf.write_raw(
-                    tmp_buff[0 as libc::c_int as usize],
+                    tmp_buff[0],
                     &mut *tmp_buff.as_mut_ptr().offset(1 as libc::c_int as isize),
                     (2 as libc::c_int as libc::c_uint)
                         .wrapping_mul(len)
@@ -315,7 +315,7 @@ impl<I: Interface> Device<I> {
                 rslt = -(1 as libc::c_int) as i8;
             } else if rslt as libc::c_int == 0 as libc::c_int {
                 rslt = bme68x_get_regs(
-                    reg_array[0 as libc::c_int as usize],
+                    reg_array[0],
                     data_array.as_mut_ptr(),
                     5 as libc::c_int as u32,
                     self,
@@ -337,38 +337,26 @@ impl<I: Interface> Device<I> {
                     rslt = boundary_check(&mut (*conf).odr, 8 as libc::c_int as u8, self);
                 }
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    data_array[4 as libc::c_int as usize] = (data_array[4 as libc::c_int as usize]
-                        as libc::c_int
-                        & !(0x1c as libc::c_int)
+                    data_array[4] = (data_array[4] as libc::c_int & !(0x1c as libc::c_int)
                         | ((*conf).filter as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
                         as u8;
-                    data_array[3 as libc::c_int as usize] =
-                        (data_array[3 as libc::c_int as usize] as libc::c_int
-                            & !(0xe0 as libc::c_int)
-                            | ((*conf).os_temp as libc::c_int) << 5 as libc::c_int
-                                & 0xe0 as libc::c_int) as u8;
-                    data_array[3 as libc::c_int as usize] =
-                        (data_array[3 as libc::c_int as usize] as libc::c_int
-                            & !(0x1c as libc::c_int)
-                            | ((*conf).os_pres as libc::c_int) << 2 as libc::c_int
-                                & 0x1c as libc::c_int) as u8;
-                    data_array[1 as libc::c_int as usize] = (data_array[1 as libc::c_int as usize]
-                        as libc::c_int
-                        & !(0x7 as libc::c_int)
+                    data_array[3] = (data_array[3] as libc::c_int & !(0xe0 as libc::c_int)
+                        | ((*conf).os_temp as libc::c_int) << 5 as libc::c_int
+                            & 0xe0 as libc::c_int) as u8;
+                    data_array[3] = (data_array[3] as libc::c_int & !(0x1c as libc::c_int)
+                        | ((*conf).os_pres as libc::c_int) << 2 as libc::c_int
+                            & 0x1c as libc::c_int) as u8;
+                    data_array[1] = (data_array[1] as libc::c_int & !(0x7 as libc::c_int)
                         | (*conf).os_hum as libc::c_int & 0x7 as libc::c_int)
                         as u8;
                     if (*conf).odr as libc::c_int != 8 as libc::c_int {
                         odr20 = (*conf).odr;
                         odr3 = 0 as libc::c_int as u8;
                     }
-                    data_array[4 as libc::c_int as usize] = (data_array[4 as libc::c_int as usize]
-                        as libc::c_int
-                        & !(0xe0 as libc::c_int)
+                    data_array[4] = (data_array[4] as libc::c_int & !(0xe0 as libc::c_int)
                         | (odr20 as libc::c_int) << 5 as libc::c_int & 0xe0 as libc::c_int)
                         as u8;
-                    data_array[0 as libc::c_int as usize] = (data_array[0 as libc::c_int as usize]
-                        as libc::c_int
-                        & !(0x80 as libc::c_int)
+                    data_array[0] = (data_array[0] as libc::c_int & !(0x80 as libc::c_int)
                         | (odr3 as libc::c_int) << 7 as libc::c_int & 0x80 as libc::c_int)
                         as u8;
                 }
@@ -403,26 +391,18 @@ pub unsafe fn bme68x_get_conf<I: Interface>(mut conf: *mut DeviceConf, dev: *mut
     if conf.is_null() {
         rslt = -(1 as libc::c_int) as i8;
     } else if rslt as libc::c_int == 0 as libc::c_int {
-        (*conf).os_hum =
-            (data_array[1 as libc::c_int as usize] as libc::c_int & 0x7 as libc::c_int) as u8;
-        (*conf).filter = ((data_array[4 as libc::c_int as usize] as libc::c_int
-            & 0x1c as libc::c_int)
-            >> 2 as libc::c_int) as u8;
-        (*conf).os_temp = ((data_array[3 as libc::c_int as usize] as libc::c_int
-            & 0xe0 as libc::c_int)
-            >> 5 as libc::c_int) as u8;
-        (*conf).os_pres = ((data_array[3 as libc::c_int as usize] as libc::c_int
-            & 0x1c as libc::c_int)
-            >> 2 as libc::c_int) as u8;
-        if (data_array[0 as libc::c_int as usize] as libc::c_int & 0x80 as libc::c_int)
-            >> 7 as libc::c_int
-            != 0
-        {
+        (*conf).os_hum = (data_array[1] as libc::c_int & 0x7 as libc::c_int) as u8;
+        (*conf).filter =
+            ((data_array[4] as libc::c_int & 0x1c as libc::c_int) >> 2 as libc::c_int) as u8;
+        (*conf).os_temp =
+            ((data_array[3] as libc::c_int & 0xe0 as libc::c_int) >> 5 as libc::c_int) as u8;
+        (*conf).os_pres =
+            ((data_array[3] as libc::c_int & 0x1c as libc::c_int) >> 2 as libc::c_int) as u8;
+        if (data_array[0] as libc::c_int & 0x80 as libc::c_int) >> 7 as libc::c_int != 0 {
             (*conf).odr = 8 as libc::c_int as u8;
         } else {
-            (*conf).odr = ((data_array[4 as libc::c_int as usize] as libc::c_int
-                & 0xe0 as libc::c_int)
-                >> 5 as libc::c_int) as u8;
+            (*conf).odr =
+                ((data_array[4] as libc::c_int & 0xe0 as libc::c_int) >> 5 as libc::c_int) as u8;
         }
     }
     return rslt;
@@ -588,11 +568,11 @@ pub unsafe fn bme68x_get_data<I: Interface>(
             gas_resistance: 0.,
         },
     ];
-    field_ptr[0 as libc::c_int as usize] =
+    field_ptr[0] =
         &mut *field_data.as_mut_ptr().offset(0 as libc::c_int as isize) as *mut SensorData;
-    field_ptr[1 as libc::c_int as usize] =
+    field_ptr[1] =
         &mut *field_data.as_mut_ptr().offset(1 as libc::c_int as isize) as *mut SensorData;
-    field_ptr[2 as libc::c_int as usize] =
+    field_ptr[2] =
         &mut *field_data.as_mut_ptr().offset(2 as libc::c_int as isize) as *mut SensorData;
     rslt = null_ptr_check(dev);
     if rslt as libc::c_int == 0 as libc::c_int && !data.is_null() {
@@ -683,18 +663,13 @@ pub unsafe fn bme68x_set_heatr_conf<I: Interface>(
                     hctrl = 0x1 as libc::c_int as u8;
                     run_gas = 0 as libc::c_int as u8;
                 }
-                ctrl_gas_data[0 as libc::c_int as usize] = (ctrl_gas_data[0 as libc::c_int as usize]
-                    as libc::c_int
-                    & !(0x8 as libc::c_int)
+                ctrl_gas_data[0] = (ctrl_gas_data[0] as libc::c_int & !(0x8 as libc::c_int)
                     | (hctrl as libc::c_int) << 3 as libc::c_int & 0x8 as libc::c_int)
                     as u8;
-                ctrl_gas_data[1 as libc::c_int as usize] =
-                    (ctrl_gas_data[1 as libc::c_int as usize] as libc::c_int
-                        & !(0xf as libc::c_int)
-                        | nb_conv as libc::c_int & 0xf as libc::c_int) as u8;
-                ctrl_gas_data[1 as libc::c_int as usize] = (ctrl_gas_data[1 as libc::c_int as usize]
-                    as libc::c_int
-                    & !(0x30 as libc::c_int)
+                ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int & !(0xf as libc::c_int)
+                    | nb_conv as libc::c_int & 0xf as libc::c_int)
+                    as u8;
+                ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int & !(0x30 as libc::c_int)
                     | (run_gas as libc::c_int) << 4 as libc::c_int & 0x30 as libc::c_int)
                     as u8;
                 rslt = bme68x_set_regs(
@@ -944,58 +919,39 @@ unsafe fn read_field_data<I: Interface>(
             rslt = -(1 as libc::c_int) as i8;
             break;
         } else {
-            (*data).status =
-                (buff[0 as libc::c_int as usize] as libc::c_int & 0x80 as libc::c_int) as u8;
-            (*data).gas_index =
-                (buff[0 as libc::c_int as usize] as libc::c_int & 0xf as libc::c_int) as u8;
-            (*data).meas_index = buff[1 as libc::c_int as usize];
-            adc_pres = (buff[2 as libc::c_int as usize] as u32)
-                .wrapping_mul(4096 as libc::c_int as libc::c_uint)
-                | (buff[3 as libc::c_int as usize] as u32)
-                    .wrapping_mul(16 as libc::c_int as libc::c_uint)
-                | (buff[4 as libc::c_int as usize] as u32)
-                    .wrapping_div(16 as libc::c_int as libc::c_uint);
-            adc_temp = (buff[5 as libc::c_int as usize] as u32)
-                .wrapping_mul(4096 as libc::c_int as libc::c_uint)
-                | (buff[6 as libc::c_int as usize] as u32)
-                    .wrapping_mul(16 as libc::c_int as libc::c_uint)
-                | (buff[7 as libc::c_int as usize] as u32)
-                    .wrapping_div(16 as libc::c_int as libc::c_uint);
-            adc_hum = ((buff[8 as libc::c_int as usize] as u32)
-                .wrapping_mul(256 as libc::c_int as libc::c_uint)
-                | buff[9 as libc::c_int as usize] as u32) as u16;
-            adc_gas_res_low = ((buff[13 as libc::c_int as usize] as u32)
-                .wrapping_mul(4 as libc::c_int as libc::c_uint)
-                | (buff[14 as libc::c_int as usize] as u32)
-                    .wrapping_div(64 as libc::c_int as libc::c_uint))
+            (*data).status = (buff[0] as libc::c_int & 0x80 as libc::c_int) as u8;
+            (*data).gas_index = (buff[0] as libc::c_int & 0xf as libc::c_int) as u8;
+            (*data).meas_index = buff[1];
+            adc_pres = (buff[2] as u32).wrapping_mul(4096 as libc::c_int as libc::c_uint)
+                | (buff[3] as u32).wrapping_mul(16 as libc::c_int as libc::c_uint)
+                | (buff[4] as u32).wrapping_div(16 as libc::c_int as libc::c_uint);
+            adc_temp = (buff[5] as u32).wrapping_mul(4096 as libc::c_int as libc::c_uint)
+                | (buff[6] as u32).wrapping_mul(16 as libc::c_int as libc::c_uint)
+                | (buff[7] as u32).wrapping_div(16 as libc::c_int as libc::c_uint);
+            adc_hum = ((buff[8] as u32).wrapping_mul(256 as libc::c_int as libc::c_uint)
+                | buff[9] as u32) as u16;
+            adc_gas_res_low = ((buff[13] as u32).wrapping_mul(4 as libc::c_int as libc::c_uint)
+                | (buff[14] as u32).wrapping_div(64 as libc::c_int as libc::c_uint))
                 as u16;
-            adc_gas_res_high = ((buff[15 as libc::c_int as usize] as u32)
-                .wrapping_mul(4 as libc::c_int as libc::c_uint)
-                | (buff[16 as libc::c_int as usize] as u32)
-                    .wrapping_div(64 as libc::c_int as libc::c_uint))
+            adc_gas_res_high = ((buff[15] as u32).wrapping_mul(4 as libc::c_int as libc::c_uint)
+                | (buff[16] as u32).wrapping_div(64 as libc::c_int as libc::c_uint))
                 as u16;
-            gas_range_l =
-                (buff[14 as libc::c_int as usize] as libc::c_int & 0xf as libc::c_int) as u8;
-            gas_range_h =
-                (buff[16 as libc::c_int as usize] as libc::c_int & 0xf as libc::c_int) as u8;
+            gas_range_l = (buff[14] as libc::c_int & 0xf as libc::c_int) as u8;
+            gas_range_h = (buff[16] as libc::c_int & 0xf as libc::c_int) as u8;
             if (*dev).variant_id == 0x1 as libc::c_int as libc::c_uint {
                 let ref mut fresh0 = (*data).status;
-                *fresh0 = (*fresh0 as libc::c_int
-                    | buff[16 as libc::c_int as usize] as libc::c_int & 0x20 as libc::c_int)
-                    as u8;
+                *fresh0 =
+                    (*fresh0 as libc::c_int | buff[16] as libc::c_int & 0x20 as libc::c_int) as u8;
                 let ref mut fresh1 = (*data).status;
-                *fresh1 = (*fresh1 as libc::c_int
-                    | buff[16 as libc::c_int as usize] as libc::c_int & 0x10 as libc::c_int)
-                    as u8;
+                *fresh1 =
+                    (*fresh1 as libc::c_int | buff[16] as libc::c_int & 0x10 as libc::c_int) as u8;
             } else {
                 let ref mut fresh2 = (*data).status;
-                *fresh2 = (*fresh2 as libc::c_int
-                    | buff[14 as libc::c_int as usize] as libc::c_int & 0x20 as libc::c_int)
-                    as u8;
+                *fresh2 =
+                    (*fresh2 as libc::c_int | buff[14] as libc::c_int & 0x20 as libc::c_int) as u8;
                 let ref mut fresh3 = (*data).status;
-                *fresh3 = (*fresh3 as libc::c_int
-                    | buff[14 as libc::c_int as usize] as libc::c_int & 0x10 as libc::c_int)
-                    as u8;
+                *fresh3 =
+                    (*fresh3 as libc::c_int | buff[14] as libc::c_int & 0x10 as libc::c_int) as u8;
             }
             if (*data).status as libc::c_int & 0x80 as libc::c_int != 0
                 && rslt as libc::c_int == 0 as libc::c_int
@@ -1378,10 +1334,10 @@ unsafe fn set_conf<I: Interface>(
     ];
     match op_mode as libc::c_int {
         1 => {
-            rh_reg_addr[0 as libc::c_int as usize] = 0x5a as libc::c_int as u8;
-            rh_reg_data[0 as libc::c_int as usize] = calc_res_heat((*conf).heatr_temp, dev);
-            gw_reg_addr[0 as libc::c_int as usize] = 0x64 as libc::c_int as u8;
-            gw_reg_data[0 as libc::c_int as usize] = calc_gas_wait((*conf).heatr_dur);
+            rh_reg_addr[0] = 0x5a as libc::c_int as u8;
+            rh_reg_data[0] = calc_res_heat((*conf).heatr_temp, dev);
+            gw_reg_addr[0] = 0x64 as libc::c_int as u8;
+            gw_reg_data[0] = calc_gas_wait((*conf).heatr_dur);
             *nb_conv = 0 as libc::c_int as u8;
             write_len = 1 as libc::c_int as u8;
         }
@@ -1571,59 +1527,47 @@ unsafe fn get_calib_data<I: Interface>(mut dev: *mut Device<I>) -> i8 {
         );
     }
     if rslt as libc::c_int == 0 as libc::c_int {
-        (*dev).calib.par_t1 =
-            ((coeff_array[32 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[31 as libc::c_int as usize] as u16 as libc::c_int) as u16;
-        (*dev).calib.par_t2 =
-            ((coeff_array[1 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[0 as libc::c_int as usize] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_t3 = coeff_array[2 as libc::c_int as usize] as i8;
-        (*dev).calib.par_p1 =
-            ((coeff_array[5 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[4 as libc::c_int as usize] as u16 as libc::c_int) as u16;
-        (*dev).calib.par_p2 =
-            ((coeff_array[7 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[6 as libc::c_int as usize] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p3 = coeff_array[8 as libc::c_int as usize] as i8;
-        (*dev).calib.par_p4 =
-            ((coeff_array[11 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[10 as libc::c_int as usize] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p5 =
-            ((coeff_array[13 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[12 as libc::c_int as usize] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p6 = coeff_array[15 as libc::c_int as usize] as i8;
-        (*dev).calib.par_p7 = coeff_array[14 as libc::c_int as usize] as i8;
-        (*dev).calib.par_p8 =
-            ((coeff_array[19 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[18 as libc::c_int as usize] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p9 =
-            ((coeff_array[21 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[20 as libc::c_int as usize] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p10 = coeff_array[22 as libc::c_int as usize];
-        (*dev).calib.par_h1 = ((coeff_array[25 as libc::c_int as usize] as u16 as libc::c_int)
-            << 4 as libc::c_int
-            | coeff_array[24 as libc::c_int as usize] as libc::c_int & 0xf as libc::c_int)
+        (*dev).calib.par_t1 = ((coeff_array[32] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[31] as u16 as libc::c_int) as u16;
+        (*dev).calib.par_t2 = ((coeff_array[1] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[0] as u16 as libc::c_int) as i16;
+        (*dev).calib.par_t3 = coeff_array[2] as i8;
+        (*dev).calib.par_p1 = ((coeff_array[5] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[4] as u16 as libc::c_int) as u16;
+        (*dev).calib.par_p2 = ((coeff_array[7] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[6] as u16 as libc::c_int) as i16;
+        (*dev).calib.par_p3 = coeff_array[8] as i8;
+        (*dev).calib.par_p4 = ((coeff_array[11] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[10] as u16 as libc::c_int) as i16;
+        (*dev).calib.par_p5 = ((coeff_array[13] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[12] as u16 as libc::c_int) as i16;
+        (*dev).calib.par_p6 = coeff_array[15] as i8;
+        (*dev).calib.par_p7 = coeff_array[14] as i8;
+        (*dev).calib.par_p8 = ((coeff_array[19] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[18] as u16 as libc::c_int) as i16;
+        (*dev).calib.par_p9 = ((coeff_array[21] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[20] as u16 as libc::c_int) as i16;
+        (*dev).calib.par_p10 = coeff_array[22];
+        (*dev).calib.par_h1 = ((coeff_array[25] as u16 as libc::c_int) << 4 as libc::c_int
+            | coeff_array[24] as libc::c_int & 0xf as libc::c_int)
             as u16;
-        (*dev).calib.par_h2 = ((coeff_array[23 as libc::c_int as usize] as u16 as libc::c_int)
-            << 4 as libc::c_int
-            | coeff_array[24 as libc::c_int as usize] as libc::c_int >> 4 as libc::c_int)
+        (*dev).calib.par_h2 = ((coeff_array[23] as u16 as libc::c_int) << 4 as libc::c_int
+            | coeff_array[24] as libc::c_int >> 4 as libc::c_int)
             as u16;
-        (*dev).calib.par_h3 = coeff_array[26 as libc::c_int as usize] as i8;
-        (*dev).calib.par_h4 = coeff_array[27 as libc::c_int as usize] as i8;
-        (*dev).calib.par_h5 = coeff_array[28 as libc::c_int as usize] as i8;
-        (*dev).calib.par_h6 = coeff_array[29 as libc::c_int as usize];
-        (*dev).calib.par_h7 = coeff_array[30 as libc::c_int as usize] as i8;
-        (*dev).calib.par_gh1 = coeff_array[35 as libc::c_int as usize] as i8;
-        (*dev).calib.par_gh2 =
-            ((coeff_array[34 as libc::c_int as usize] as u16 as libc::c_int) << 8 as libc::c_int
-                | coeff_array[33 as libc::c_int as usize] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_gh3 = coeff_array[36 as libc::c_int as usize] as i8;
-        (*dev).calib.res_heat_range = ((coeff_array[39 as libc::c_int as usize] as libc::c_int
-            & 0x30 as libc::c_int)
-            / 16 as libc::c_int) as u8;
-        (*dev).calib.res_heat_val = coeff_array[37 as libc::c_int as usize] as i8;
-        (*dev).calib.range_sw_err = ((coeff_array[41 as libc::c_int as usize] as libc::c_int
-            & 0xf0 as libc::c_int) as i8 as libc::c_int
+        (*dev).calib.par_h3 = coeff_array[26] as i8;
+        (*dev).calib.par_h4 = coeff_array[27] as i8;
+        (*dev).calib.par_h5 = coeff_array[28] as i8;
+        (*dev).calib.par_h6 = coeff_array[29];
+        (*dev).calib.par_h7 = coeff_array[30] as i8;
+        (*dev).calib.par_gh1 = coeff_array[35] as i8;
+        (*dev).calib.par_gh2 = ((coeff_array[34] as u16 as libc::c_int) << 8 as libc::c_int
+            | coeff_array[33] as u16 as libc::c_int) as i16;
+        (*dev).calib.par_gh3 = coeff_array[36] as i8;
+        (*dev).calib.res_heat_range =
+            ((coeff_array[39] as libc::c_int & 0x30 as libc::c_int) / 16 as libc::c_int) as u8;
+        (*dev).calib.res_heat_val = coeff_array[37] as i8;
+        (*dev).calib.range_sw_err = ((coeff_array[41] as libc::c_int & 0xf0 as libc::c_int) as i8
+            as libc::c_int
             / 16 as libc::c_int) as i8;
     }
     return rslt;
