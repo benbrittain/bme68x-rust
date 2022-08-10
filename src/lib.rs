@@ -7,6 +7,3 @@ pub mod bme68x;
 
 mod interface;
 pub use interface::{Error, Interface};
-
-// TODO remove this
-pub use interface::check_rslt;

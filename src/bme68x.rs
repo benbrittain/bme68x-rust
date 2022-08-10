@@ -309,7 +309,7 @@ impl<I: Interface> Device<I> {
             let mut data_array: [u8; 5] = [0 as libc::c_int as u8, 0, 0, 0, 0];
             rslt = bme68x_get_op_mode(&mut current_op_mode, self);
             if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = bme68x_set_op_mode(0 as libc::c_int as u8, self);
+                self.set_op_mode(0u8)?;
             }
             if conf.is_null() {
                 rslt = -(1 as libc::c_int) as i8;
@@ -372,7 +372,7 @@ impl<I: Interface> Device<I> {
             if current_op_mode as libc::c_int != 0 as libc::c_int
                 && rslt as libc::c_int == 0 as libc::c_int
             {
-                rslt = bme68x_set_op_mode(current_op_mode, self);
+                self.set_op_mode(current_op_mode)?;
             }
             return check_rslt(rslt);
         }
@@ -407,47 +407,54 @@ pub unsafe fn bme68x_get_conf<I: Interface>(mut conf: *mut DeviceConf, dev: *mut
     }
     return rslt;
 }
-pub unsafe fn bme68x_set_op_mode<I: Interface>(op_mode: u8, dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut tmp_pow_mode: u8 = 0;
-    let mut pow_mode: u8 = 0 as libc::c_int as u8;
-    let mut reg_addr: u8 = 0x74 as libc::c_int as u8;
-    loop {
-        rslt = bme68x_get_regs(
-            0x74 as libc::c_int as u8,
-            &mut tmp_pow_mode,
-            1 as libc::c_int as u32,
-            dev,
-        );
-        if rslt as libc::c_int == 0 as libc::c_int {
-            pow_mode = (tmp_pow_mode as libc::c_int & 0x3 as libc::c_int) as u8;
-            if pow_mode as libc::c_int != 0 as libc::c_int {
-                tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)) as u8;
+impl<I: Interface> Device<I> {
+    pub fn set_op_mode(&mut self, op_mode: u8) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut tmp_pow_mode: u8 = 0;
+            let mut pow_mode: u8 = 0 as libc::c_int as u8;
+            let mut reg_addr: u8 = 0x74 as libc::c_int as u8;
+            loop {
+                rslt = bme68x_get_regs(
+                    0x74 as libc::c_int as u8,
+                    &mut tmp_pow_mode,
+                    1 as libc::c_int as u32,
+                    self,
+                );
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    pow_mode = (tmp_pow_mode as libc::c_int & 0x3 as libc::c_int) as u8;
+                    if pow_mode as libc::c_int != 0 as libc::c_int {
+                        tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)) as u8;
+                        rslt = bme68x_set_regs(
+                            &mut reg_addr,
+                            &mut tmp_pow_mode,
+                            1 as libc::c_int as u32,
+                            self,
+                        );
+                        (*self).intf.delay(10000 as libc::c_uint);
+                    }
+                }
+                if !(pow_mode as libc::c_int != 0 as libc::c_int
+                    && rslt as libc::c_int == 0 as libc::c_int)
+                {
+                    break;
+                }
+            }
+            if op_mode as libc::c_int != 0 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int
+            {
+                tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)
+                    | op_mode as libc::c_int & 0x3 as libc::c_int)
+                    as u8;
                 rslt = bme68x_set_regs(
                     &mut reg_addr,
                     &mut tmp_pow_mode,
                     1 as libc::c_int as u32,
-                    dev,
+                    self,
                 );
-                (*dev).intf.delay(10000 as libc::c_uint);
             }
-        }
-        if !(pow_mode as libc::c_int != 0 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int)
-        {
-            break;
+            check_rslt(rslt)
         }
     }
-    if op_mode as libc::c_int != 0 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int {
-        tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)
-            | op_mode as libc::c_int & 0x3 as libc::c_int) as u8;
-        rslt = bme68x_set_regs(
-            &mut reg_addr,
-            &mut tmp_pow_mode,
-            1 as libc::c_int as u32,
-            dev,
-        );
-    }
-    return rslt;
 }
 pub unsafe fn bme68x_get_op_mode<I: Interface>(op_mode: *mut u8, dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
@@ -512,179 +519,189 @@ pub unsafe fn bme68x_get_meas_dur<I: Interface>(
     }
     return meas_dur;
 }
-pub unsafe fn bme68x_get_data<I: Interface>(
-    op_mode: u8,
-    data: *mut SensorData,
-    n_data: *mut u8,
-    dev: *mut Device<I>,
-) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut i: u8 = 0 as libc::c_int as u8;
-    let mut j: u8 = 0 as libc::c_int as u8;
-    let mut new_fields: u8 = 0 as libc::c_int as u8;
-    let mut field_ptr: [*mut SensorData; 3] = [
-        0 as *mut SensorData,
-        0 as *mut SensorData,
-        0 as *mut SensorData,
-    ];
-    let mut field_data: [SensorData; 3] = [
-        {
-            let init = SensorData {
-                status: 0 as libc::c_int as u8,
-                gas_index: 0,
-                meas_index: 0,
-                res_heat: 0,
-                idac: 0,
-                gas_wait: 0,
-                temperature: 0.,
-                pressure: 0.,
-                humidity: 0.,
-                gas_resistance: 0.,
-            };
-            init
-        },
-        SensorData {
-            status: 0,
-            gas_index: 0,
-            meas_index: 0,
-            res_heat: 0,
-            idac: 0,
-            gas_wait: 0,
-            temperature: 0.,
-            pressure: 0.,
-            humidity: 0.,
-            gas_resistance: 0.,
-        },
-        SensorData {
-            status: 0,
-            gas_index: 0,
-            meas_index: 0,
-            res_heat: 0,
-            idac: 0,
-            gas_wait: 0,
-            temperature: 0.,
-            pressure: 0.,
-            humidity: 0.,
-            gas_resistance: 0.,
-        },
-    ];
-    field_ptr[0] =
-        &mut *field_data.as_mut_ptr().offset(0 as libc::c_int as isize) as *mut SensorData;
-    field_ptr[1] =
-        &mut *field_data.as_mut_ptr().offset(1 as libc::c_int as isize) as *mut SensorData;
-    field_ptr[2] =
-        &mut *field_data.as_mut_ptr().offset(2 as libc::c_int as isize) as *mut SensorData;
-    rslt = null_ptr_check(dev);
-    if rslt as libc::c_int == 0 as libc::c_int && !data.is_null() {
-        if op_mode as libc::c_int == 1 as libc::c_int {
-            rslt = read_field_data(0 as libc::c_int as u8, data, dev);
-            if rslt as libc::c_int == 0 as libc::c_int {
-                if (*data).status as libc::c_int & 0x80 as libc::c_int != 0 {
-                    new_fields = 1 as libc::c_int as u8;
-                } else {
+impl<I: Interface> Device<I> {
+    pub fn get_data(
+        &mut self,
+        op_mode: u8,
+        data: *mut SensorData,
+        n_data: *mut u8,
+    ) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut i: u8 = 0 as libc::c_int as u8;
+            let mut j: u8 = 0 as libc::c_int as u8;
+            let mut new_fields: u8 = 0 as libc::c_int as u8;
+            let mut field_ptr: [*mut SensorData; 3] = [
+                0 as *mut SensorData,
+                0 as *mut SensorData,
+                0 as *mut SensorData,
+            ];
+            let mut field_data: [SensorData; 3] = [
+                {
+                    let init = SensorData {
+                        status: 0 as libc::c_int as u8,
+                        gas_index: 0,
+                        meas_index: 0,
+                        res_heat: 0,
+                        idac: 0,
+                        gas_wait: 0,
+                        temperature: 0.,
+                        pressure: 0.,
+                        humidity: 0.,
+                        gas_resistance: 0.,
+                    };
+                    init
+                },
+                SensorData {
+                    status: 0,
+                    gas_index: 0,
+                    meas_index: 0,
+                    res_heat: 0,
+                    idac: 0,
+                    gas_wait: 0,
+                    temperature: 0.,
+                    pressure: 0.,
+                    humidity: 0.,
+                    gas_resistance: 0.,
+                },
+                SensorData {
+                    status: 0,
+                    gas_index: 0,
+                    meas_index: 0,
+                    res_heat: 0,
+                    idac: 0,
+                    gas_wait: 0,
+                    temperature: 0.,
+                    pressure: 0.,
+                    humidity: 0.,
+                    gas_resistance: 0.,
+                },
+            ];
+            field_ptr[0] =
+                &mut *field_data.as_mut_ptr().offset(0 as libc::c_int as isize) as *mut SensorData;
+            field_ptr[1] =
+                &mut *field_data.as_mut_ptr().offset(1 as libc::c_int as isize) as *mut SensorData;
+            field_ptr[2] =
+                &mut *field_data.as_mut_ptr().offset(2 as libc::c_int as isize) as *mut SensorData;
+            rslt = null_ptr_check(self);
+            if rslt as libc::c_int == 0 as libc::c_int && !data.is_null() {
+                if op_mode as libc::c_int == 1 as libc::c_int {
+                    rslt = read_field_data(0 as libc::c_int as u8, data, self);
+                    if rslt as libc::c_int == 0 as libc::c_int {
+                        if (*data).status as libc::c_int & 0x80 as libc::c_int != 0 {
+                            new_fields = 1 as libc::c_int as u8;
+                        } else {
+                            new_fields = 0 as libc::c_int as u8;
+                            rslt = 2 as libc::c_int as i8;
+                        }
+                    }
+                } else if op_mode as libc::c_int == 2 as libc::c_int
+                    || op_mode as libc::c_int == 3 as libc::c_int
+                {
+                    rslt =
+                        read_all_field_data(field_ptr.as_mut_ptr() as *const *mut SensorData, self);
                     new_fields = 0 as libc::c_int as u8;
-                    rslt = 2 as libc::c_int as i8;
-                }
-            }
-        } else if op_mode as libc::c_int == 2 as libc::c_int
-            || op_mode as libc::c_int == 3 as libc::c_int
-        {
-            rslt = read_all_field_data(field_ptr.as_mut_ptr() as *const *mut SensorData, dev);
-            new_fields = 0 as libc::c_int as u8;
-            i = 0 as libc::c_int as u8;
-            while (i as libc::c_int) < 3 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int {
-                if (*field_ptr[i as usize]).status as libc::c_int & 0x80 as libc::c_int != 0 {
-                    new_fields = new_fields.wrapping_add(1);
-                }
-                i = i.wrapping_add(1);
-            }
-            i = 0 as libc::c_int as u8;
-            while (i as libc::c_int) < 2 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int {
-                j = (i as libc::c_int + 1 as libc::c_int) as u8;
-                while (j as libc::c_int) < 3 as libc::c_int {
-                    sort_sensor_data(i, j, field_ptr.as_mut_ptr());
-                    j = j.wrapping_add(1);
-                }
-                i = i.wrapping_add(1);
-            }
-            i = 0 as libc::c_int as u8;
-            while (i as libc::c_int) < 3 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int {
-                *data.offset(i as isize) = *field_ptr[i as usize];
-                i = i.wrapping_add(1);
-            }
-            if new_fields as libc::c_int == 0 as libc::c_int {
-                rslt = 2 as libc::c_int as i8;
-            }
-        } else {
-            rslt = 1 as libc::c_int as i8;
-        }
-        if n_data.is_null() {
-            rslt = -(1 as libc::c_int) as i8;
-        } else {
-            *n_data = new_fields;
-        }
-    } else {
-        rslt = -(1 as libc::c_int) as i8;
-    }
-    return rslt;
-}
-pub unsafe fn bme68x_set_heatr_conf<I: Interface>(
-    op_mode: u8,
-    conf: *const HeaterConf,
-    dev: *mut Device<I>,
-) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut nb_conv: u8 = 0 as libc::c_int as u8;
-    let mut hctrl: u8 = 0;
-    let mut run_gas: u8 = 0 as libc::c_int as u8;
-    let mut ctrl_gas_data: [u8; 2] = [0; 2];
-    let mut ctrl_gas_addr: [u8; 2] = [0x70 as libc::c_int as u8, 0x71 as libc::c_int as u8];
-    if !conf.is_null() {
-        rslt = bme68x_set_op_mode(0 as libc::c_int as u8, dev);
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = set_conf(conf, op_mode, &mut nb_conv, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = bme68x_get_regs(
-                0x70 as libc::c_int as u8,
-                ctrl_gas_data.as_mut_ptr(),
-                2 as libc::c_int as u32,
-                dev,
-            );
-            if rslt as libc::c_int == 0 as libc::c_int {
-                if (*conf).enable as libc::c_int == 0x1 as libc::c_int {
-                    hctrl = 0 as libc::c_int as u8;
-                    if (*dev).variant_id == 0x1 as libc::c_int as libc::c_uint {
-                        run_gas = 0x2 as libc::c_int as u8;
-                    } else {
-                        run_gas = 0x1 as libc::c_int as u8;
+                    i = 0 as libc::c_int as u8;
+                    while (i as libc::c_int) < 3 as libc::c_int
+                        && rslt as libc::c_int == 0 as libc::c_int
+                    {
+                        if (*field_ptr[i as usize]).status as libc::c_int & 0x80 as libc::c_int != 0
+                        {
+                            new_fields = new_fields.wrapping_add(1);
+                        }
+                        i = i.wrapping_add(1);
+                    }
+                    i = 0 as libc::c_int as u8;
+                    while (i as libc::c_int) < 2 as libc::c_int
+                        && rslt as libc::c_int == 0 as libc::c_int
+                    {
+                        j = (i as libc::c_int + 1 as libc::c_int) as u8;
+                        while (j as libc::c_int) < 3 as libc::c_int {
+                            sort_sensor_data(i, j, field_ptr.as_mut_ptr());
+                            j = j.wrapping_add(1);
+                        }
+                        i = i.wrapping_add(1);
+                    }
+                    i = 0 as libc::c_int as u8;
+                    while (i as libc::c_int) < 3 as libc::c_int
+                        && rslt as libc::c_int == 0 as libc::c_int
+                    {
+                        *data.offset(i as isize) = *field_ptr[i as usize];
+                        i = i.wrapping_add(1);
+                    }
+                    if new_fields as libc::c_int == 0 as libc::c_int {
+                        rslt = 2 as libc::c_int as i8;
                     }
                 } else {
-                    hctrl = 0x1 as libc::c_int as u8;
-                    run_gas = 0 as libc::c_int as u8;
+                    rslt = 1 as libc::c_int as i8;
                 }
-                ctrl_gas_data[0] = (ctrl_gas_data[0] as libc::c_int & !(0x8 as libc::c_int)
-                    | (hctrl as libc::c_int) << 3 as libc::c_int & 0x8 as libc::c_int)
-                    as u8;
-                ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int & !(0xf as libc::c_int)
-                    | nb_conv as libc::c_int & 0xf as libc::c_int)
-                    as u8;
-                ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int & !(0x30 as libc::c_int)
-                    | (run_gas as libc::c_int) << 4 as libc::c_int & 0x30 as libc::c_int)
-                    as u8;
-                rslt = bme68x_set_regs(
-                    ctrl_gas_addr.as_mut_ptr(),
-                    ctrl_gas_data.as_mut_ptr(),
-                    2 as libc::c_int as u32,
-                    dev,
-                );
+                if n_data.is_null() {
+                    rslt = -(1 as libc::c_int) as i8;
+                } else {
+                    *n_data = new_fields;
+                }
+            } else {
+                rslt = -(1 as libc::c_int) as i8;
             }
+            check_rslt(rslt)
         }
-    } else {
-        rslt = -(1 as libc::c_int) as i8;
     }
-    return rslt;
+    pub fn set_heatr_conf(&mut self, op_mode: u8, conf: *const HeaterConf) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut nb_conv: u8 = 0 as libc::c_int as u8;
+            let mut hctrl: u8 = 0;
+            let mut run_gas: u8 = 0 as libc::c_int as u8;
+            let mut ctrl_gas_data: [u8; 2] = [0; 2];
+            let mut ctrl_gas_addr: [u8; 2] = [0x70 as libc::c_int as u8, 0x71 as libc::c_int as u8];
+            if !conf.is_null() {
+                self.set_op_mode(0 as libc::c_int as u8)?;
+                rslt = set_conf(conf, op_mode, &mut nb_conv, self);
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = bme68x_get_regs(
+                        0x70 as libc::c_int as u8,
+                        ctrl_gas_data.as_mut_ptr(),
+                        2 as libc::c_int as u32,
+                        self,
+                    );
+                    if rslt as libc::c_int == 0 as libc::c_int {
+                        if (*conf).enable as libc::c_int == 0x1 as libc::c_int {
+                            hctrl = 0 as libc::c_int as u8;
+                            if (*self).variant_id == 0x1 as libc::c_int as libc::c_uint {
+                                run_gas = 0x2 as libc::c_int as u8;
+                            } else {
+                                run_gas = 0x1 as libc::c_int as u8;
+                            }
+                        } else {
+                            hctrl = 0x1 as libc::c_int as u8;
+                            run_gas = 0 as libc::c_int as u8;
+                        }
+                        ctrl_gas_data[0] = (ctrl_gas_data[0] as libc::c_int & !(0x8 as libc::c_int)
+                            | (hctrl as libc::c_int) << 3 as libc::c_int & 0x8 as libc::c_int)
+                            as u8;
+                        ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int & !(0xf as libc::c_int)
+                            | nb_conv as libc::c_int & 0xf as libc::c_int)
+                            as u8;
+                        ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int
+                            & !(0x30 as libc::c_int)
+                            | (run_gas as libc::c_int) << 4 as libc::c_int & 0x30 as libc::c_int)
+                            as u8;
+                        rslt = bme68x_set_regs(
+                            ctrl_gas_addr.as_mut_ptr(),
+                            ctrl_gas_data.as_mut_ptr(),
+                            2 as libc::c_int as u32,
+                            self,
+                        );
+                    }
+                }
+            } else {
+                rslt = -(1 as libc::c_int) as i8;
+            }
+            check_rslt(rslt)
+        }
+    }
 }
+
 pub unsafe fn bme68x_get_heatr_conf<I: Interface>(
     conf: *const HeaterConf,
     dev: *mut Device<I>,

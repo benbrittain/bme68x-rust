@@ -1,4 +1,4 @@
-use bme68x_rust::{bme68x::*, check_rslt, Error, Interface};
+use bme68x_rust::{bme68x::*, Error, Interface};
 use std::process::Command;
 
 struct SpiDriver {}
@@ -65,15 +65,13 @@ fn main() -> Result<(), Error> {
     heatr_conf.enable = 0x1;
     heatr_conf.heatr_temp = 300;
     heatr_conf.heatr_dur = 100;
-    let rslt = unsafe { bme68x_set_heatr_conf(1 as libc::c_int as u8, &mut heatr_conf, &mut bme) };
-    check_rslt(rslt)?;
+    bme.set_heatr_conf(1 as libc::c_int as u8, &mut heatr_conf)?;
 
     let time_ms = std::time::Instant::now();
     println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
     for sample_count in 0..300 {
         // Set operating mode
-        let rslt = unsafe { bme68x_set_op_mode(1 as libc::c_int as u8, &mut bme) };
-        check_rslt(rslt)?;
+        bme.set_op_mode(1 as libc::c_int as u8)?;
 
         // Delay the remaining duration that can be used for heating
         let del_period = unsafe {
@@ -86,8 +84,7 @@ fn main() -> Result<(), Error> {
         // Get the sensor data
         let mut n_fields = 0;
         let mut data: SensorData = SensorData::default();
-        let rslt = unsafe { bme68x_get_data(1, &mut data, &mut n_fields, &mut bme) };
-        check_rslt(rslt)?;
+        bme.get_data(1, &mut data, &mut n_fields)?;
 
         if n_fields != 0 {
             println!(
