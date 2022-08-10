@@ -3,6 +3,19 @@ use libc;
 use crate::interface::{check_rslt, Error, Interface};
 use crate::internal::*;
 
+/// Operation mode of the sensor.
+#[derive(PartialEq)]
+pub enum OperationMode {
+    /// No measurements are performed. Minimal power consumption.
+    Sleep = 0,
+    /// Single TPHG cycle is performed. Gas sensor heater only operates during gas measurement.
+    /// Returns to Sleep afterwards.
+    Forced = 1,
+    /// Multiple TPHG cycles are performed. Gas sensor heater operates in parallel to TPH
+    /// measurement. Does not return to Sleep Mode.
+    Parallel = 2,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CommInterface {
     SPI = 0,
@@ -269,7 +282,6 @@ impl<I: Interface> Device<I> {
             let mut rslt: i8 = 0;
             let mut odr20: u8 = 0 as libc::c_int as u8;
             let mut odr3: u8 = 1 as libc::c_int as u8;
-            let mut current_op_mode: u8 = 0;
             let mut reg_array: [u8; 5] = [
                 0x71 as libc::c_int as u8,
                 0x72 as libc::c_int as u8,
@@ -278,8 +290,8 @@ impl<I: Interface> Device<I> {
                 0x75 as libc::c_int as u8,
             ];
             let mut data_array: [u8; 5] = [0 as libc::c_int as u8, 0, 0, 0, 0];
-            self.get_op_mode(&mut current_op_mode)?;
-            self.set_op_mode(0u8)?;
+            let current_op_mode = self.get_op_mode()?;
+            self.set_op_mode(OperationMode::Sleep)?;
             if conf.is_null() {
                 rslt = -(1 as libc::c_int) as i8;
             } else if rslt as libc::c_int == 0 as libc::c_int {
@@ -336,9 +348,7 @@ impl<I: Interface> Device<I> {
                     5 as libc::c_int as u32,
                 )?;
             }
-            if current_op_mode as libc::c_int != 0 as libc::c_int
-                && rslt as libc::c_int == 0 as libc::c_int
-            {
+            if current_op_mode != OperationMode::Sleep && rslt as libc::c_int == 0 as libc::c_int {
                 self.set_op_mode(current_op_mode)?;
             }
             return check_rslt(rslt);
@@ -370,7 +380,8 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
-    pub fn set_op_mode(&mut self, op_mode: u8) -> Result<(), Error> {
+    pub fn set_op_mode(&mut self, op_mode: OperationMode) -> Result<(), Error> {
+        let op_mode = op_mode as u8;
         let mut tmp_pow_mode: u8 = 0;
         let mut reg_addr: u8 = 0x74 as libc::c_int as u8;
         loop {
@@ -396,22 +407,21 @@ impl<I: Interface> Device<I> {
         }
         Ok(())
     }
-    pub fn get_op_mode(&mut self, op_mode: *mut u8) -> Result<(), Error> {
-        unsafe {
-            let mut rslt: i8 = 0;
-            let mut mode: u8 = 0;
-            if !op_mode.is_null() {
-                self.get_regs(
-                    0x74 as libc::c_int as u8,
-                    &mut mode,
-                    1 as libc::c_int as u32,
-                )?;
-                *op_mode = (mode as libc::c_int & 0x3 as libc::c_int) as u8;
-            } else {
-                rslt = -(1 as libc::c_int) as i8;
-            }
-            check_rslt(rslt)
-        }
+    pub fn get_op_mode(&mut self) -> Result<OperationMode, Error> {
+        let mut rslt: i8 = 0;
+        let mut mode: u8 = 0;
+        self.get_regs(
+            0x74 as libc::c_int as u8,
+            &mut mode,
+            1 as libc::c_int as u32,
+        )?;
+        let op_mode = (mode as libc::c_int & 0x3 as libc::c_int) as u8;
+        Ok(match op_mode {
+            0 => OperationMode::Sleep,
+            1 => OperationMode::Forced,
+            2 => OperationMode::Parallel,
+            _ => unreachable!(),
+        })
     }
 
     /// Used to get the remaining duration that can be used for heating.
@@ -596,7 +606,7 @@ impl<I: Interface> Device<I> {
             let mut ctrl_gas_data: [u8; 2] = [0; 2];
             let mut ctrl_gas_addr: [u8; 2] = [0x70 as libc::c_int as u8, 0x71 as libc::c_int as u8];
             if !conf.is_null() {
-                self.set_op_mode(0 as libc::c_int as u8)?;
+                self.set_op_mode(OperationMode::Sleep)?;
                 rslt = set_conf(conf, op_mode, &mut nb_conv, self);
                 if rslt as libc::c_int == 0 as libc::c_int {
                     self.get_regs(

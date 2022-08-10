@@ -1,4 +1,6 @@
-use bme68x_rust::{CommInterface, Device, DeviceConf, Error, HeaterConf, Interface, SensorData};
+use bme68x_rust::{
+    CommInterface, Device, DeviceConf, Error, HeaterConf, Interface, OperationMode, SensorData,
+};
 use clap::Parser;
 use std::{path::PathBuf, process::Command};
 
@@ -91,7 +93,7 @@ fn main() -> Result<(), Error> {
     println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
     for sample_count in 0..300 {
         // Set operating mode
-        bme.set_op_mode(1)?;
+        bme.set_op_mode(OperationMode::Forced)?;
 
         // Delay the remaining duration that can be used for heating
         let del_period = bme
