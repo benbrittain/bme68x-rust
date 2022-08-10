@@ -86,18 +86,7 @@ fn main() -> Result<(), Error> {
 
         // Get the sensor data
         let mut n_fields = 0;
-        let mut data: bme68x_data = bme68x_data {
-            status: 0,
-            gas_index: 0,
-            meas_index: 0,
-            res_heat: 0,
-            idac: 0,
-            gas_wait: 0,
-            temperature: 0.,
-            pressure: 0.,
-            humidity: 0.,
-            gas_resistance: 0.,
-        };
+        let mut data: SensorData = SensorData::default();
         let rslt = unsafe { bme68x_get_data(1, &mut data, &mut n_fields, &mut bme) };
         check_rslt(rslt)?;
 

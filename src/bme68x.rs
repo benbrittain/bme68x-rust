@@ -8,9 +8,9 @@ pub enum CommInterface {
     I2C = 1,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
-pub struct bme68x_data {
+pub struct SensorData {
     pub status: u8,
     pub gas_index: u8,
     pub meas_index: u8,
@@ -24,7 +24,7 @@ pub struct bme68x_data {
 }
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub struct bme68x_calib_data {
+pub struct CalibrationData {
     pub par_h1: u16,
     pub par_h2: u16,
     pub par_h3: i8,
@@ -95,7 +95,7 @@ pub struct Device<I: Interface> {
     pub variant_id: u32,
     pub mem_page: u8,
     pub amb_temp: i8,
-    pub calib: bme68x_calib_data,
+    pub calib: CalibrationData,
     pub intf_rslt: i8,
     pub info_msg: u8,
 }
@@ -111,7 +111,7 @@ impl<I: Interface> Device<I> {
             intf,
             mem_page: 0,
             amb_temp,
-            calib: bme68x_calib_data {
+            calib: CalibrationData {
                 par_h1: 0,
                 par_h2: 0,
                 par_h3: 0,
@@ -170,6 +170,7 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
+
 }
 pub unsafe fn bme68x_set_regs<I: Interface>(
     reg_addr: *const u8,
@@ -521,7 +522,7 @@ pub unsafe fn bme68x_get_meas_dur<I: Interface>(
 }
 pub unsafe fn bme68x_get_data<I: Interface>(
     op_mode: u8,
-    data: *mut bme68x_data,
+    data: *mut SensorData,
     n_data: *mut u8,
     dev: *mut Device<I>,
 ) -> i8 {
@@ -529,14 +530,14 @@ pub unsafe fn bme68x_get_data<I: Interface>(
     let mut i: u8 = 0 as libc::c_int as u8;
     let mut j: u8 = 0 as libc::c_int as u8;
     let mut new_fields: u8 = 0 as libc::c_int as u8;
-    let mut field_ptr: [*mut bme68x_data; 3] = [
-        0 as *mut bme68x_data,
-        0 as *mut bme68x_data,
-        0 as *mut bme68x_data,
+    let mut field_ptr: [*mut SensorData; 3] = [
+        0 as *mut SensorData,
+        0 as *mut SensorData,
+        0 as *mut SensorData,
     ];
-    let mut field_data: [bme68x_data; 3] = [
+    let mut field_data: [SensorData; 3] = [
         {
-            let init = bme68x_data {
+            let init = SensorData {
                 status: 0 as libc::c_int as u8,
                 gas_index: 0,
                 meas_index: 0,
@@ -550,7 +551,7 @@ pub unsafe fn bme68x_get_data<I: Interface>(
             };
             init
         },
-        bme68x_data {
+        SensorData {
             status: 0,
             gas_index: 0,
             meas_index: 0,
@@ -562,7 +563,7 @@ pub unsafe fn bme68x_get_data<I: Interface>(
             humidity: 0.,
             gas_resistance: 0.,
         },
-        bme68x_data {
+        SensorData {
             status: 0,
             gas_index: 0,
             meas_index: 0,
@@ -576,11 +577,11 @@ pub unsafe fn bme68x_get_data<I: Interface>(
         },
     ];
     field_ptr[0 as libc::c_int as usize] =
-        &mut *field_data.as_mut_ptr().offset(0 as libc::c_int as isize) as *mut bme68x_data;
+        &mut *field_data.as_mut_ptr().offset(0 as libc::c_int as isize) as *mut SensorData;
     field_ptr[1 as libc::c_int as usize] =
-        &mut *field_data.as_mut_ptr().offset(1 as libc::c_int as isize) as *mut bme68x_data;
+        &mut *field_data.as_mut_ptr().offset(1 as libc::c_int as isize) as *mut SensorData;
     field_ptr[2 as libc::c_int as usize] =
-        &mut *field_data.as_mut_ptr().offset(2 as libc::c_int as isize) as *mut bme68x_data;
+        &mut *field_data.as_mut_ptr().offset(2 as libc::c_int as isize) as *mut SensorData;
     rslt = null_ptr_check(dev);
     if rslt as libc::c_int == 0 as libc::c_int && !data.is_null() {
         if op_mode as libc::c_int == 1 as libc::c_int {
@@ -596,7 +597,7 @@ pub unsafe fn bme68x_get_data<I: Interface>(
         } else if op_mode as libc::c_int == 2 as libc::c_int
             || op_mode as libc::c_int == 3 as libc::c_int
         {
-            rslt = read_all_field_data(field_ptr.as_mut_ptr() as *const *mut bme68x_data, dev);
+            rslt = read_all_field_data(field_ptr.as_mut_ptr() as *const *mut SensorData, dev);
             new_fields = 0 as libc::c_int as u8;
             i = 0 as libc::c_int as u8;
             while (i as libc::c_int) < 3 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int {
@@ -889,7 +890,7 @@ unsafe fn calc_gas_wait(mut dur: u16) -> u8 {
 }
 unsafe fn read_field_data<I: Interface>(
     index: u8,
-    mut data: *mut bme68x_data,
+    mut data: *mut SensorData,
     dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
@@ -1032,7 +1033,7 @@ unsafe fn read_field_data<I: Interface>(
     return rslt;
 }
 unsafe fn read_all_field_data<I: Interface>(
-    data: *const *mut bme68x_data,
+    data: *const *mut SensorData,
     dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
@@ -1458,7 +1459,7 @@ unsafe fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
     }
     return heatdurval;
 }
-unsafe fn sort_sensor_data(low_index: u8, high_index: u8, field: *mut *mut bme68x_data) {
+unsafe fn sort_sensor_data(low_index: u8, high_index: u8, field: *mut *mut SensorData) {
     let mut meas_index1: i16 = 0;
     let mut meas_index2: i16 = 0;
     meas_index1 = (**field.offset(low_index as isize)).meas_index as i16;
@@ -1477,15 +1478,15 @@ unsafe fn sort_sensor_data(low_index: u8, high_index: u8, field: *mut *mut bme68
         swap_fields(low_index, high_index, field);
     }
 }
-unsafe fn swap_fields(index1: u8, index2: u8, field: *mut *mut bme68x_data) {
-    let mut temp: *mut bme68x_data = 0 as *mut bme68x_data;
+unsafe fn swap_fields(index1: u8, index2: u8, field: *mut *mut SensorData) {
+    let mut temp: *mut SensorData = 0 as *mut SensorData;
     temp = *field.offset(index1 as isize);
     let ref mut fresh9 = *field.offset(index1 as isize);
     *fresh9 = *field.offset(index2 as isize);
     let ref mut fresh10 = *field.offset(index2 as isize);
     *fresh10 = temp;
 }
-unsafe fn analyze_sensor_data(data: *const bme68x_data, n_meas: u8) -> i8 {
+unsafe fn analyze_sensor_data(data: *const SensorData, n_meas: u8) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
     let mut self_test_failed: u8 = 0 as libc::c_int as u8;
     let mut i: u8 = 0;
