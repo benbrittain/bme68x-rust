@@ -23,7 +23,7 @@ pub struct bme68x_data {
     pub humidity: libc::c_float,
     pub gas_resistance: libc::c_float,
 }
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct bme68x_calib_data {
     pub par_h1: uint16_t,
@@ -74,7 +74,7 @@ pub struct bme68x_heatr_conf {
     pub profile_len: uint8_t,
     pub shared_heatr_dur: uint16_t,
 }
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct bme68x_dev {
     pub chip_id: uint8_t,
@@ -112,6 +112,7 @@ pub unsafe extern "C" fn bme68x_init(mut dev: *mut bme68x_dev) -> int8_t {
             }
         }
     }
+    dbg!(*dev);
     return rslt;
 }
 #[no_mangle]

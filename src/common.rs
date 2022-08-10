@@ -70,7 +70,7 @@ pub unsafe extern "C" fn bme68x_spi_read(
     mut intf_ptr: *mut libc::c_void,
 ) -> i8 {
     let reg_slice: &mut [u8] = &mut *std::ptr::slice_from_raw_parts_mut(reg_data, len as usize);
-    println!("READ 0x{:x} {:?}", reg_addr, reg_slice);
+    // println!("READ 0x{:x} {:?}", reg_addr, reg_slice);
     let cmd = format!("s w 0x{:x} r {len} u", reg_addr);
     let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
         .arg("/dev/ttyUSB1")
@@ -89,13 +89,30 @@ pub unsafe extern "C" fn bme68x_spi_read(
 }
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_spi_write(
-    mut reg_addr: uint8_t,
-    mut reg_data: *const uint8_t,
-    mut len: uint32_t,
-    mut intf_ptr: *mut libc::c_void,
-) -> int8_t {
-    todo!();
-    return -(1 as libc::c_int) as int8_t;
+    reg_addr: u8,
+    reg_data: *const u8,
+    len: u32,
+    _intf_ptr: *mut libc::c_void,
+) -> i8 {
+    let reg_slice: &[u8] = &*std::ptr::slice_from_raw_parts(reg_data, len as usize);
+    // println!("WRITE 0x{:x} {:X?}", reg_addr, reg_slice);
+    let data: String = reg_slice.iter().map(|b| format!("0x{:x},", b)).collect();
+    let cmd = format!("s w 0x{:x} w {} u", reg_addr, data);
+    let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
+        .arg("/dev/ttyUSB1")
+        .args(cmd.split(" "))
+        .output()
+        .unwrap();
+
+    let return_bytes = std::str::from_utf8(&output.stdout);
+    //
+    //        .unwrap()
+    //        .trim()
+    //        .split(",")
+    //        .map(|s| u8::from_str_radix(s.trim_start_matches("0x"), 16).unwrap())
+    //        .collect();
+    //    println!("{:x?}", return_bytes);
+    return 0;
 }
 
 #[no_mangle]

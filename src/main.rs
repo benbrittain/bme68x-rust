@@ -111,7 +111,10 @@ unsafe fn main_0() -> libc::c_int {
         b"bme68x_set_heatr_conf\0" as *const u8 as *const libc::c_char,
         rslt,
     );
-    println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
+    printf(
+        b"Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status\n\0"
+            as *const u8 as *const libc::c_char,
+    );
     while sample_count as libc::c_int <= 300 as libc::c_int {
         rslt = bme68x_set_op_mode(1 as libc::c_int as uint8_t, &mut bme);
         bme68x_check_rslt(
@@ -134,9 +137,8 @@ unsafe fn main_0() -> libc::c_int {
             rslt,
         );
         if n_fields != 0 {
-            println!(
-                //b"%u, %lu, %.2f, %.2f, %.2f, %.2f, 0x%x\n\0" as *const u8
-                "{}, {} ,{}, {}, {}, {}, {}",
+            printf(
+                b"%u, %lu, %.2f, %.2f, %.2f, %.2f, 0x%x\n\0" as *const u8 as *const libc::c_char,
                 sample_count as libc::c_int,
                 time_ms as libc::c_ulong,
                 data.temperature as libc::c_double,
@@ -145,6 +147,7 @@ unsafe fn main_0() -> libc::c_int {
                 data.gas_resistance as libc::c_double,
                 data.status as libc::c_int,
             );
+
             sample_count = sample_count.wrapping_add(1);
         }
     }
