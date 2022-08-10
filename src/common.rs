@@ -97,9 +97,11 @@ pub unsafe extern "C" fn bme68x_spi_write(
     todo!();
     return -(1 as libc::c_int) as int8_t;
 }
+
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_delay_us(mut period: uint32_t, mut intf_ptr: *mut libc::c_void) {
-    todo!();
+pub unsafe extern "C" fn bme68x_delay_us(period: u32, intf_ptr: *mut libc::c_void) {
+    let delay = std::time::Duration::from_micros(period as u64);
+    std::thread::sleep(delay);
 }
 
 #[no_mangle]
