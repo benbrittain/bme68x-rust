@@ -1,12 +1,57 @@
+use std::process::Command;
+
 mod bme68x;
 mod interface;
 
 use bme68x::{Device, *};
-use interface::{bme68x_interface_init, check_rslt, Error};
+use interface::{bme68x_interface_init, check_rslt, Error, Interface};
+
+struct SpiDriver {}
+
+impl Interface for SpiDriver {
+    fn interface_type(&self) -> CommInterface {
+        CommInterface::SPI
+    }
+
+    fn delay(&self, period: u32) {
+        let delay = std::time::Duration::from_micros(period as u64);
+        std::thread::sleep(delay);
+    }
+
+    fn write(&self, reg_addr: u8, reg_data: &[u8]) -> Result<(), Error> {
+        let data: String = reg_data.iter().map(|b| format!("0x{:x},", b)).collect();
+        let cmd = format!("s w 0x{:x} w {} u", reg_addr, data);
+        let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
+            .arg("/dev/ttyUSB1")
+            .args(cmd.split(" "))
+            .output()
+            .map_err(|_| Error::CommunicationFailure)?;
+        Ok(())
+    }
+
+    fn read(&self, reg_addr: u8, reg_data: &mut [u8]) -> Result<(), Error> {
+        let len = reg_data.len();
+        let cmd = format!("s w 0x{:x} r {len} u", reg_addr);
+        let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
+            .arg("/dev/ttyUSB1")
+            .args(cmd.split(" "))
+            .output()
+            .map_err(|_| Error::CommunicationFailure)?;
+
+        let return_bytes: Vec<u8> = std::str::from_utf8(&output.stdout)
+            .unwrap()
+            .trim()
+            .split(",")
+            .map(|s| u8::from_str_radix(s.trim_start_matches("0x"), 16).unwrap())
+            .collect();
+        reg_data.copy_from_slice(&return_bytes[..len as usize]);
+        Ok(())
+    }
+}
 
 fn main() -> Result<(), Error> {
     // Init interface
-    let mut bme: Device = Device::default();
+    let mut bme = Device::new(SpiDriver {});
     //    bme.interface_init()?;
 
     let rslt = unsafe { bme68x_interface_init(&mut bme as *mut _, CommInterface::SPI) };
@@ -48,7 +93,7 @@ fn main() -> Result<(), Error> {
             )
         };
         unsafe {
-            (bme.delay_us).expect("non-null function pointer")(del_period, bme.intf_ptr);
+            bme.intf.delay(del_period);
         }
 
         // Get the sensor data
