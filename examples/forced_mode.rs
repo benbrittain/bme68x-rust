@@ -1,7 +1,11 @@
 use bme68x_rust::{CommInterface, Device, DeviceConf, Error, HeaterConf, Interface, SensorData};
-use std::process::Command;
+use clap::Parser;
+use std::{path::PathBuf, process::Command};
 
-struct SpiDriver {}
+struct SpiDriver {
+    spicl: PathBuf,
+    tty: PathBuf,
+}
 
 impl Interface for SpiDriver {
     fn interface_type(&self) -> CommInterface {
@@ -16,8 +20,8 @@ impl Interface for SpiDriver {
     fn write(&self, reg_addr: u8, reg_data: &[u8]) -> Result<(), Error> {
         let data: String = reg_data.iter().map(|b| format!("0x{:x},", b)).collect();
         let cmd = format!("s w 0x{:x} w {} u", reg_addr, data);
-        Command::new("/home/ben/workspace/spidriver/c/build/spicl")
-            .arg("/dev/ttyUSB1")
+        Command::new(&self.spicl)
+            .arg(&self.tty)
             .args(cmd.split(" "))
             .output()
             .map_err(|_| Error::CommunicationFailure)?;
@@ -27,8 +31,8 @@ impl Interface for SpiDriver {
     fn read(&self, reg_addr: u8, reg_data: &mut [u8]) -> Result<(), Error> {
         let len = reg_data.len();
         let cmd = format!("s w 0x{:x} r {len} u", reg_addr);
-        let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
-            .arg("/dev/ttyUSB1")
+        let output = Command::new(&self.spicl)
+            .arg(&self.tty)
             .args(cmd.split(" "))
             .output()
             .map_err(|_| Error::CommunicationFailure)?;
@@ -44,9 +48,25 @@ impl Interface for SpiDriver {
     }
 }
 
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    /// Location of the spidriver "spicl" binary.
+    #[clap(short, long)]
+    spicl: PathBuf,
+
+    /// Location of the tty USB device of the spidriver.
+    #[clap(short, long)]
+    tty: PathBuf,
+}
+
 fn main() -> Result<(), Error> {
     // Init interface
-    let mut bme = Device::new(SpiDriver {});
+    let args = Args::parse();
+    let mut bme = Device::new(SpiDriver {
+        spicl: args.spicl,
+        tty: args.tty,
+    });
 
     // Init bme68x
     bme.init()?;
