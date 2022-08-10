@@ -4,6 +4,7 @@
 #![allow(unused_assignments)]
 
 mod bme68x;
+mod internal;
 pub use bme68x::{CommInterface, Device, DeviceConf, HeaterConf, SensorData};
 
 mod interface;
