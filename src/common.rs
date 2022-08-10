@@ -7,14 +7,10 @@ use std::process::Command;
 extern "C" {
     fn printf(_: *const libc::c_char, _: ...) -> libc::c_int;
 }
-pub type bme68x_read_fptr_t =
-    Option<unsafe extern "C" fn(uint8_t, *mut uint8_t, uint32_t, *mut libc::c_void) -> int8_t>;
-pub type bme68x_write_fptr_t =
-    Option<unsafe extern "C" fn(uint8_t, *const uint8_t, uint32_t, *mut libc::c_void) -> int8_t>;
-pub type bme68x_delay_us_fptr_t = Option<unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> ()>;
 pub type bme68x_intf = libc::c_uint;
 pub const BME68X_I2C_INTF: bme68x_intf = 1;
 pub const BME68X_SPI_INTF: bme68x_intf = 0;
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct bme68x_calib_data {
@@ -46,7 +42,6 @@ pub struct bme68x_calib_data {
     pub res_heat_val: int8_t,
     pub range_sw_err: int8_t,
 }
-static mut dev_addr: uint8_t = 0;
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_i2c_read(
     mut reg_addr: uint8_t,
@@ -175,7 +170,6 @@ pub unsafe extern "C" fn bme68x_interface_init(
     mut intf: uint8_t,
 ) -> int8_t {
     let mut rslt: int8_t = 0 as libc::c_int as int8_t;
-    dev_addr = 0 as libc::c_int as uint8_t;
     let ref mut fresh0 = (*bme).read;
     *fresh0 = Some(
         bme68x_spi_read
@@ -189,8 +183,6 @@ pub unsafe extern "C" fn bme68x_interface_init(
     (*bme).intf = BME68X_SPI_INTF;
     let ref mut fresh2 = (*bme).delay_us;
     *fresh2 = Some(bme68x_delay_us as unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> ());
-    let ref mut fresh3 = (*bme).intf_ptr;
-    *fresh3 = &mut dev_addr as *mut uint8_t as *mut libc::c_void;
     (*bme).amb_temp = 25 as libc::c_int as int8_t;
     return rslt;
 }
