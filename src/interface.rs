@@ -30,10 +30,15 @@ pub trait Interface {
     fn interface_type(&self) -> CommInterface;
 
     /// Function for reading the sensor's registers through SPI bus.
-    fn read(&self, _reg_addr: u8, _reg_data: &mut [u8]) -> Result<(), Error> {
-        unimplemented!("The interface over the SPI device must implement read. This is only called when the interface type is set to CommInterface::SPI.");
-    }
+    fn read(&self, _reg_addr: u8, _reg_data: &mut [u8]) -> Result<(), Error>;
 
+    /// Function for writing the sensor's registers through SPI bus.
+    fn write(&self, _reg_addr: u8, _reg_data: &[u8]) -> Result<(), Error>;
+
+    /// Function for delaying in Microseconds.
+    fn delay(&self, _us: u32);
+
+    #[doc(hidden)]
     unsafe fn read_raw(&self, reg_addr: u8, reg_data: *mut u8, len: u32) -> i8 {
         let reg_slice: &mut [u8] =
             &mut *core::ptr::slice_from_raw_parts_mut(reg_data, len as usize);
@@ -44,11 +49,7 @@ pub trait Interface {
         }
     }
 
-    /// Function for writing the sensor's registers through SPI bus.
-    fn write(&self, _reg_addr: u8, _reg_data: &[u8]) -> Result<(), Error> {
-        unimplemented!("The interface over the SPI device must implement write. This is only called when the interface type is set to CommInterface::SPI.");
-    }
-
+    #[doc(hidden)]
     unsafe fn write_raw(&self, reg_addr: u8, reg_data: *const u8, len: u32) -> i8 {
         let reg_slice: &[u8] = &*core::ptr::slice_from_raw_parts(reg_data, len as usize);
         if self.write(reg_addr, reg_slice).is_ok() {
@@ -56,10 +57,5 @@ pub trait Interface {
         } else {
             -1
         }
-    }
-
-    /// Function for delaying in Microseconds.
-    fn delay(&self, _us: u32) {
-        unimplemented!("The interface over the SPI/I2C device must implement a delay.")
     }
 }
