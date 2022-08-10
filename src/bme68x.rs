@@ -291,10 +291,7 @@ pub unsafe fn bme68x_soft_reset<I: Interface>(dev: *mut Device<I>) -> i8 {
     }
     return rslt;
 }
-pub unsafe fn bme68x_set_conf<I: Interface>(
-    conf: *mut DeviceConf,
-    mut dev: *mut Device<I>,
-) -> i8 {
+pub unsafe fn bme68x_set_conf<I: Interface>(conf: *mut DeviceConf, mut dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let mut odr20: u8 = 0 as libc::c_int as u8;
     let mut odr3: u8 = 1 as libc::c_int as u8;
@@ -380,10 +377,7 @@ pub unsafe fn bme68x_set_conf<I: Interface>(
     }
     return rslt;
 }
-pub unsafe fn bme68x_get_conf<I: Interface>(
-    mut conf: *mut DeviceConf,
-    dev: *mut Device<I>,
-) -> i8 {
+pub unsafe fn bme68x_get_conf<I: Interface>(mut conf: *mut DeviceConf, dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let reg_addr: u8 = 0x71 as libc::c_int as u8;
     let mut data_array: [u8; 5] = [0; 5];
@@ -462,10 +456,7 @@ pub unsafe fn bme68x_set_op_mode<I: Interface>(op_mode: u8, dev: *mut Device<I>)
     }
     return rslt;
 }
-pub unsafe fn bme68x_get_op_mode<I: Interface>(
-    op_mode: *mut u8,
-    dev: *mut Device<I>,
-) -> i8 {
+pub unsafe fn bme68x_get_op_mode<I: Interface>(op_mode: *mut u8, dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let mut mode: u8 = 0;
     if !op_mode.is_null() {
@@ -749,10 +740,7 @@ pub unsafe fn bme68x_get_heatr_conf<I: Interface>(
     return rslt;
 }
 
-unsafe fn calc_temperature<I: Interface>(
-    temp_adc: u32,
-    mut dev: *mut Device<I>,
-) -> libc::c_float {
+unsafe fn calc_temperature<I: Interface>(temp_adc: u32, mut dev: *mut Device<I>) -> libc::c_float {
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
     let mut calc_temp: libc::c_float = 0.;
@@ -768,10 +756,7 @@ unsafe fn calc_temperature<I: Interface>(
     calc_temp = (*dev).calib.t_fine / 5120.0f32;
     return calc_temp;
 }
-unsafe fn calc_pressure<I: Interface>(
-    pres_adc: u32,
-    dev: *const Device<I>,
-) -> libc::c_float {
+unsafe fn calc_pressure<I: Interface>(pres_adc: u32, dev: *const Device<I>) -> libc::c_float {
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
     let mut var3: libc::c_float = 0.;
@@ -800,10 +785,7 @@ unsafe fn calc_pressure<I: Interface>(
     }
     return calc_pres;
 }
-unsafe fn calc_humidity<I: Interface>(
-    hum_adc: u16,
-    dev: *const Device<I>,
-) -> libc::c_float {
+unsafe fn calc_humidity<I: Interface>(hum_adc: u16, dev: *const Device<I>) -> libc::c_float {
     let mut calc_hum: libc::c_float = 0.;
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
@@ -1301,11 +1283,7 @@ unsafe fn get_mem_page<I: Interface>(mut dev: *mut Device<I>) -> i8 {
     }
     return rslt;
 }
-unsafe fn boundary_check<I: Interface>(
-    value: *mut u8,
-    max: u8,
-    dev: *mut Device<I>,
-) -> i8 {
+unsafe fn boundary_check<I: Interface>(value: *mut u8, max: u8, dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     rslt = null_ptr_check(dev);
     if !value.is_null() && rslt as libc::c_int == 0 as libc::c_int {
@@ -1480,11 +1458,7 @@ unsafe fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
     }
     return heatdurval;
 }
-unsafe fn sort_sensor_data(
-    low_index: u8,
-    high_index: u8,
-    field: *mut *mut bme68x_data,
-) {
+unsafe fn sort_sensor_data(low_index: u8, high_index: u8, field: *mut *mut bme68x_data) {
     let mut meas_index1: i16 = 0;
     let mut meas_index2: i16 = 0;
     meas_index1 = (**field.offset(low_index as isize)).meas_index as i16;

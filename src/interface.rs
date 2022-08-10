@@ -34,7 +34,8 @@ pub trait Interface {
     }
 
     unsafe fn read_raw(&self, reg_addr: u8, reg_data: *mut u8, len: u32) -> i8 {
-        let reg_slice: &mut [u8] = &mut *std::ptr::slice_from_raw_parts_mut(reg_data, len as usize);
+        let reg_slice: &mut [u8] =
+            &mut *core::ptr::slice_from_raw_parts_mut(reg_data, len as usize);
         if self.read(reg_addr, reg_slice).is_ok() {
             0
         } else {
@@ -48,7 +49,7 @@ pub trait Interface {
     }
 
     unsafe fn write_raw(&self, reg_addr: u8, reg_data: *const u8, len: u32) -> i8 {
-        let reg_slice: &[u8] = &*std::ptr::slice_from_raw_parts(reg_data, len as usize);
+        let reg_slice: &[u8] = &*core::ptr::slice_from_raw_parts(reg_data, len as usize);
         if self.write(reg_addr, reg_slice).is_ok() {
             0
         } else {

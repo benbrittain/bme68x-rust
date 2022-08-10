@@ -1,14 +1,5 @@
-// TODO work through these and remove them
-#![allow(dead_code)]
-#![allow(unused_assignments)]
-
+use bme68x_rust::{bme68x::*, check_rslt, Error, Interface};
 use std::process::Command;
-
-mod bme68x;
-mod interface;
-
-use bme68x::{Device, *};
-use interface::{check_rslt, Error, Interface};
 
 struct SpiDriver {}
 
