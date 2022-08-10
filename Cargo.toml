@@ -1,9 +1,13 @@
 [package]
 name = "bme68x-rust"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Library for interacting with Bosch BME68x chips over I2C and SPI"
 license = "BSD-3-Clause"
+readme = "README.md"
+repository = "https://github.com/benbrittain/bme68x-rust"
+keywords = ["sensor", "no_std", "air", "embedded"]
+categories = ["embedded"]
 
 [dependencies]
 libc = "0.2"
