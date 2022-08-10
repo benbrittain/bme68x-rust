@@ -1,6 +1,6 @@
 [package]
 name = "bme68x-rust"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Library for interacting with Bosch BME68x chips over I2C and SPI"
 license = "BSD-3-Clause"
