@@ -2,9 +2,8 @@ mod bme68x;
 mod common;
 
 use bme68x::*;
-use common::{bme68x_check_rslt};
+use common::bme68x_check_rslt;
 use common::bme68x_interface_init;
-
 
 use libc::*;
 
@@ -84,7 +83,10 @@ unsafe fn main_0() -> libc::c_int {
     let mut time_ms: uint32_t = 0 as libc::c_int as uint32_t;
     let mut n_fields: uint8_t = 0;
     let mut sample_count: uint16_t = 1 as libc::c_int as uint16_t;
-    rslt = bme68x_interface_init(&mut bme as *mut _, BME68X_SPI_INTF as libc::c_int as uint8_t);
+    rslt = bme68x_interface_init(
+        &mut bme as *mut _,
+        BME68X_SPI_INTF as libc::c_int as uint8_t,
+    );
     bme68x_check_rslt(
         b"bme68x_interface_init\0" as *const u8 as *const libc::c_char,
         rslt,

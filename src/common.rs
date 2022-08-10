@@ -6,15 +6,11 @@ use crate::bme68x::*;
 extern "C" {
     fn printf(_: *const libc::c_char, _: ...) -> libc::c_int;
 }
-pub type bme68x_read_fptr_t = Option::<
-    unsafe extern "C" fn(uint8_t, *mut uint8_t, uint32_t, *mut libc::c_void) -> int8_t,
->;
-pub type bme68x_write_fptr_t = Option::<
-    unsafe extern "C" fn(uint8_t, *const uint8_t, uint32_t, *mut libc::c_void) -> int8_t,
->;
-pub type bme68x_delay_us_fptr_t = Option::<
-    unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> (),
->;
+pub type bme68x_read_fptr_t =
+    Option<unsafe extern "C" fn(uint8_t, *mut uint8_t, uint32_t, *mut libc::c_void) -> int8_t>;
+pub type bme68x_write_fptr_t =
+    Option<unsafe extern "C" fn(uint8_t, *const uint8_t, uint32_t, *mut libc::c_void) -> int8_t>;
+pub type bme68x_delay_us_fptr_t = Option<unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> ()>;
 pub type bme68x_intf = libc::c_uint;
 pub const BME68X_I2C_INTF: bme68x_intf = 1;
 pub const BME68X_SPI_INTF: bme68x_intf = 0;
@@ -92,15 +88,9 @@ pub unsafe extern "C" fn bme68x_spi_write(
     return -(1 as libc::c_int) as int8_t;
 }
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_delay_us(
-    mut period: uint32_t,
-    mut intf_ptr: *mut libc::c_void,
-) {}
+pub unsafe extern "C" fn bme68x_delay_us(mut period: uint32_t, mut intf_ptr: *mut libc::c_void) {}
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_check_rslt(
-    mut api_name: *const libc::c_char,
-    mut rslt: int8_t,
-) {
+pub unsafe extern "C" fn bme68x_check_rslt(mut api_name: *const libc::c_char, mut rslt: int8_t) {
     match rslt as libc::c_int {
         0 => {}
         -1 => {
@@ -121,8 +111,8 @@ pub unsafe extern "C" fn bme68x_check_rslt(
         }
         -4 => {
             printf(
-                b"API name [%s]  Error [%d] : Incorrect length parameter\r\n\0"
-                    as *const u8 as *const libc::c_char,
+                b"API name [%s]  Error [%d] : Incorrect length parameter\r\n\0" as *const u8
+                    as *const libc::c_char,
                 api_name,
                 rslt as libc::c_int,
             );
@@ -171,28 +161,16 @@ pub unsafe extern "C" fn bme68x_interface_init(
     let ref mut fresh0 = (*bme).read;
     *fresh0 = Some(
         bme68x_spi_read
-            as unsafe extern "C" fn(
-                uint8_t,
-                *mut uint8_t,
-                uint32_t,
-                *mut libc::c_void,
-            ) -> int8_t,
+            as unsafe extern "C" fn(uint8_t, *mut uint8_t, uint32_t, *mut libc::c_void) -> int8_t,
     );
     let ref mut fresh1 = (*bme).write;
     *fresh1 = Some(
         bme68x_spi_write
-            as unsafe extern "C" fn(
-                uint8_t,
-                *const uint8_t,
-                uint32_t,
-                *mut libc::c_void,
-            ) -> int8_t,
+            as unsafe extern "C" fn(uint8_t, *const uint8_t, uint32_t, *mut libc::c_void) -> int8_t,
     );
     (*bme).intf = BME68X_SPI_INTF;
     let ref mut fresh2 = (*bme).delay_us;
-    *fresh2 = Some(
-        bme68x_delay_us as unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> (),
-    );
+    *fresh2 = Some(bme68x_delay_us as unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> ());
     let ref mut fresh3 = (*bme).intf_ptr;
     *fresh3 = &mut dev_addr as *mut uint8_t as *mut libc::c_void;
     (*bme).amb_temp = 25 as libc::c_int as int8_t;
