@@ -1,5 +1,6 @@
 use crate::bme68x::*;
 
+/// BME68X Errors
 #[derive(Debug)]
 pub enum Error {
     NullPointer,

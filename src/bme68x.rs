@@ -16,6 +16,7 @@ pub enum OperationMode {
     Parallel = 2,
 }
 
+/// Hardware communication interface (SPI & I2C)
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CommInterface {
     SPI = 0,
@@ -380,6 +381,8 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
+
+    /// Used to set the operation mode of the sensor.
     pub fn set_op_mode(&mut self, op_mode: OperationMode) -> Result<(), Error> {
         let op_mode = op_mode as u8;
         let mut tmp_pow_mode: u8 = 0;
@@ -407,6 +410,8 @@ impl<I: Interface> Device<I> {
         }
         Ok(())
     }
+
+    /// Used to get the operation mode of the sensor.
     pub fn get_op_mode(&mut self) -> Result<OperationMode, Error> {
         let mut rslt: i8 = 0;
         let mut mode: u8 = 0;
