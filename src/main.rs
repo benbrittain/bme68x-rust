@@ -1,6 +1,5 @@
 // TODO work through these and remove them
 #![allow(dead_code)]
-#![allow(unused_unsafe)]
 #![allow(unused_assignments)]
 #![allow(unused_mut)]
 
@@ -93,9 +92,7 @@ fn main() -> Result<(), Error> {
                 (heatr_conf.heatr_dur as libc::c_int * 1000 as libc::c_int) as libc::c_uint,
             )
         };
-        unsafe {
-            bme.intf.delay(del_period);
-        }
+        bme.intf.delay(del_period);
 
         // Get the sensor data
         let mut n_fields = 0;
