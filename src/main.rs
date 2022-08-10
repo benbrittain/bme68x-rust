@@ -9,7 +9,6 @@ use libc::*;
 fn main() -> Result<(), Error> {
     let mut bme: bme68x_dev = bme68x_dev::default();
 
-    let mut rslt: int8_t = 0;
     let mut conf: bme68x_conf = bme68x_conf {
         os_hum: 0,
         os_temp: 0,
@@ -39,29 +38,29 @@ fn main() -> Result<(), Error> {
         gas_resistance: 0.,
     };
     let mut del_period: u32 = 0;
-    let mut time_ms: u32 = 0 as libc::c_int as u32;
+    let time_ms = std::time::Instant::now();
     let mut n_fields: u8 = 0;
     let mut sample_count: u16 = 1 as libc::c_int as u16;
-    rslt =
+    let rslt =
         unsafe { bme68x_interface_init(&mut bme as *mut _, BME68X_SPI_INTF as libc::c_int as u8) };
     check_rslt(String::from("bme68x_interface_init"), rslt)?;
-    rslt = unsafe { bme68x_init(&mut bme) };
+    let rslt = unsafe { bme68x_init(&mut bme) };
     check_rslt(String::from("bme68x_init"), rslt)?;
     conf.filter = 0 as libc::c_int as u8;
     conf.odr = 8 as libc::c_int as u8;
     conf.os_hum = 5 as libc::c_int as u8;
     conf.os_pres = 1 as libc::c_int as u8;
     conf.os_temp = 2 as libc::c_int as u8;
-    rslt = unsafe { bme68x_set_conf(&mut conf, &mut bme) };
+    let rslt = unsafe { bme68x_set_conf(&mut conf, &mut bme) };
     check_rslt(String::from("bme68x_set_conf"), rslt)?;
     heatr_conf.enable = 0x1 as libc::c_int as u8;
     heatr_conf.heatr_temp = 300 as libc::c_int as u16;
     heatr_conf.heatr_dur = 100 as libc::c_int as u16;
-    rslt = unsafe { bme68x_set_heatr_conf(1 as libc::c_int as u8, &mut heatr_conf, &mut bme) };
+    let rslt = unsafe { bme68x_set_heatr_conf(1 as libc::c_int as u8, &mut heatr_conf, &mut bme) };
     check_rslt(String::from("bme68x_set_heatr_conf"), rslt)?;
     println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
     while sample_count as libc::c_int <= 300 as libc::c_int {
-        rslt = unsafe { bme68x_set_op_mode(1 as libc::c_int as u8, &mut bme) };
+        let rslt = unsafe { bme68x_set_op_mode(1 as libc::c_int as u8, &mut bme) };
         check_rslt(String::from("bme68x_set_op_mode"), rslt)?;
         del_period = unsafe {
             (bme68x_get_meas_dur(1 as libc::c_int as u8, &mut conf, &mut bme)).wrapping_add(
@@ -71,14 +70,14 @@ fn main() -> Result<(), Error> {
         unsafe {
             (bme.delay_us).expect("non-null function pointer")(del_period, bme.intf_ptr);
         }
-        rslt =
+        let rslt =
             unsafe { bme68x_get_data(1 as libc::c_int as u8, &mut data, &mut n_fields, &mut bme) };
         check_rslt(String::from("bme68x_get_data"), rslt)?;
         if n_fields != 0 {
             println!(
-                "{}, {}, {:.2}, {:.2}, {:.2} {:.2} {:x}",
+                "{}, {:?}, {:.2}, {:.2}, {:.2} {:.2} {:x}",
                 sample_count as libc::c_int,
-                time_ms as libc::c_ulong,
+                time_ms.elapsed().as_millis(),
                 data.temperature as libc::c_double,
                 data.pressure as libc::c_double,
                 data.humidity as libc::c_double,
