@@ -3,7 +3,8 @@
 #![allow(dead_code)]
 #![allow(unused_assignments)]
 
-pub mod bme68x;
+mod bme68x;
+pub use bme68x::{CommInterface, Device, DeviceConf, HeaterConf, SensorData};
 
 mod interface;
 pub use interface::{Error, Interface};

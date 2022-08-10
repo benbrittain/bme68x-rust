@@ -1,4 +1,4 @@
-use bme68x_rust::{bme68x::*, Error, Interface};
+use bme68x_rust::{CommInterface, Device, DeviceConf, Error, HeaterConf, Interface, SensorData};
 use std::process::Command;
 
 struct SpiDriver {}
