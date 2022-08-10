@@ -37,6 +37,7 @@ pub struct SensorData {
     pub humidity: libc::c_float,
     pub gas_resistance: libc::c_float,
 }
+
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct CalibrationData {
@@ -102,26 +103,25 @@ impl Default for HeaterConf {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
+/// BME68x Device Controller
 pub struct Device<I: Interface> {
-    pub intf: I,
-    pub variant_id: u32,
-    pub mem_page: u8,
-    pub amb_temp: i8,
-    pub calib: CalibrationData,
-    pub intf_rslt: i8,
-    pub info_msg: u8,
+    pub interface: I,
+    pub(crate) variant_id: u32,
+    pub(crate) mem_page: u8,
+    pub(crate) amb_temp: i8,
+    pub(crate) calib: CalibrationData,
+    pub(crate) interface_result: i8,
+    pub(crate) info_msg: u8,
 }
 
 impl<I: Interface> Device<I> {
-    pub fn new(intf: I) -> Self {
+    pub fn new(interface: I) -> Self {
         // NOTE moved amb_temp from bme68x_interface_init since everything else that function did
         // is now contained within the interface trait.
         let amb_temp = 25;
         Self {
             variant_id: 0,
-            intf,
+            interface,
             mem_page: 0,
             amb_temp,
             calib: CalibrationData {
@@ -153,7 +153,7 @@ impl<I: Interface> Device<I> {
                 res_heat_val: 0,
                 range_sw_err: 0,
             },
-            intf_rslt: 0,
+            interface_result: 0,
             info_msg: 0,
         }
     }
@@ -201,7 +201,7 @@ impl<I: Interface> Device<I> {
                 {
                     index = 0 as libc::c_int as u16;
                     while (index as libc::c_uint) < len {
-                        if (*self).intf.interface_type() == CommInterface::SPI {
+                        if (*self).interface.interface_type() == CommInterface::SPI {
                             rslt = set_mem_page(*reg_addr.offset(index as isize), self);
                             tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
                                 (*reg_addr.offset(index as isize) as libc::c_int
@@ -215,14 +215,14 @@ impl<I: Interface> Device<I> {
                         index = index.wrapping_add(1);
                     }
                     if rslt as libc::c_int == 0 as libc::c_int {
-                        (*self).intf_rslt = (*self).intf.write_raw(
+                        (*self).interface_result = (*self).interface.write_raw(
                             tmp_buff[0],
                             &mut *tmp_buff.as_mut_ptr().offset(1 as libc::c_int as isize),
                             (2 as libc::c_int as libc::c_uint)
                                 .wrapping_mul(len)
                                 .wrapping_sub(1 as libc::c_int as libc::c_uint),
                         );
-                        if (*self).intf_rslt as libc::c_int != 0 as libc::c_int {
+                        if (*self).interface_result as libc::c_int != 0 as libc::c_int {
                             rslt = -(2 as libc::c_int) as i8;
                         }
                     }
@@ -240,14 +240,14 @@ impl<I: Interface> Device<I> {
             let mut rslt: i8 = 0;
             rslt = null_ptr_check(self);
             if rslt as libc::c_int == 0 as libc::c_int && !reg_data.is_null() {
-                if (*self).intf.interface_type() == CommInterface::SPI {
+                if (*self).interface.interface_type() == CommInterface::SPI {
                     rslt = set_mem_page(reg_addr, self);
                     if rslt as libc::c_int == 0 as libc::c_int {
                         reg_addr = (reg_addr as libc::c_int | 0x80 as libc::c_int) as u8;
                     }
                 }
-                (*self).intf_rslt = (*self).intf.read_raw(reg_addr, reg_data, len);
-                if (*self).intf_rslt as libc::c_int != 0 as libc::c_int {
+                (*self).interface_result = (*self).interface.read_raw(reg_addr, reg_data, len);
+                if (*self).interface_result as libc::c_int != 0 as libc::c_int {
                     rslt = -(2 as libc::c_int) as i8;
                 }
             } else {
@@ -263,13 +263,13 @@ impl<I: Interface> Device<I> {
             let mut soft_rst_cmd: u8 = 0xb6 as libc::c_int as u8;
             rslt = null_ptr_check(self);
             if rslt as libc::c_int == 0 as libc::c_int {
-                if (*self).intf.interface_type() == CommInterface::SPI {
+                if (*self).interface.interface_type() == CommInterface::SPI {
                     rslt = get_mem_page(self);
                 }
                 if rslt as libc::c_int == 0 as libc::c_int {
                     self.set_regs(&mut reg_addr, &mut soft_rst_cmd, 1 as libc::c_int as u32)?;
-                    (*self).intf.delay(10000 as libc::c_uint);
-                    if (*self).intf.interface_type() == CommInterface::SPI {
+                    (*self).interface.delay(10000 as libc::c_uint);
+                    if (*self).interface.interface_type() == CommInterface::SPI {
                         rslt = get_mem_page(self);
                     }
                 }
@@ -397,7 +397,7 @@ impl<I: Interface> Device<I> {
             if pow_mode as libc::c_int != 0 as libc::c_int {
                 tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)) as u8;
                 self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
-                (*self).intf.delay(10000 as libc::c_uint);
+                (*self).interface.delay(10000 as libc::c_uint);
             }
             if !(pow_mode as libc::c_int != 0 as libc::c_int) {
                 break;

@@ -279,7 +279,7 @@ pub(crate) unsafe fn read_field_data<I: Interface>(
                 }
             }
             if rslt as libc::c_int == 0 as libc::c_int {
-                (*dev).intf.delay(10000 as libc::c_uint);
+                (*dev).interface.delay(10000 as libc::c_uint);
             }
             tries = tries.wrapping_sub(1);
         }
@@ -497,24 +497,24 @@ pub(crate) unsafe fn set_mem_page<I: Interface>(reg_addr: u8, mut dev: *mut Devi
         }
         if mem_page as libc::c_int != (*dev).mem_page as libc::c_int {
             (*dev).mem_page = mem_page;
-            (*dev).intf_rslt = (*dev).intf.read_raw(
+            (*dev).interface_result = (*dev).interface.read_raw(
                 (0xf3 as libc::c_int | 0x80 as libc::c_int) as u8,
                 &mut reg,
                 1 as libc::c_int as u32,
             );
-            if (*dev).intf_rslt as libc::c_int != 0 as libc::c_int {
+            if (*dev).interface_result as libc::c_int != 0 as libc::c_int {
                 rslt = -(2 as libc::c_int) as i8;
             }
             if rslt as libc::c_int == 0 as libc::c_int {
                 reg = (reg as libc::c_int & !(0x10 as libc::c_int)) as u8;
                 reg = (reg as libc::c_int | (*dev).mem_page as libc::c_int & 0x10 as libc::c_int)
                     as u8;
-                (*dev).intf_rslt = (*dev).intf.write_raw(
+                (*dev).interface_result = (*dev).interface.write_raw(
                     (0xf3 as libc::c_int & 0x7f as libc::c_int) as u8,
                     &mut reg,
                     1 as libc::c_int as u32,
                 );
-                if (*dev).intf_rslt as libc::c_int != 0 as libc::c_int {
+                if (*dev).interface_result as libc::c_int != 0 as libc::c_int {
                     rslt = -(2 as libc::c_int) as i8;
                 }
             }
@@ -527,12 +527,12 @@ pub(crate) unsafe fn get_mem_page<I: Interface>(mut dev: *mut Device<I>) -> i8 {
     let mut reg: u8 = 0;
     rslt = null_ptr_check(dev);
     if rslt as libc::c_int == 0 as libc::c_int {
-        (*dev).intf_rslt = (*dev).intf.read_raw(
+        (*dev).interface_result = (*dev).interface.read_raw(
             (0xf3 as libc::c_int | 0x80 as libc::c_int) as u8,
             &mut reg,
             1 as libc::c_int as u32,
         );
-        if (*dev).intf_rslt as libc::c_int != 0 as libc::c_int {
+        if (*dev).interface_result as libc::c_int != 0 as libc::c_int {
             rslt = -(2 as libc::c_int) as i8;
         } else {
             (*dev).mem_page = (reg as libc::c_int & 0x10 as libc::c_int) as u8;

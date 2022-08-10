@@ -99,7 +99,7 @@ fn main() -> Result<(), Error> {
         let del_period = bme
             .get_meas_dur(1, &mut conf)
             .wrapping_add(heatr_conf.heatr_dur as u32 * 1000);
-        bme.intf.delay(del_period);
+        bme.interface.delay(del_period);
 
         // Get the sensor data
         let mut n_fields = 0;
