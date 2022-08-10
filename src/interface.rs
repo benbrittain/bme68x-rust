@@ -4,9 +4,6 @@ use libc::*;
 use crate::bme68x::*;
 use std::process::Command;
 
-extern "C" {
-    fn printf(_: *const libc::c_char, _: ...) -> libc::c_int;
-}
 pub type bme68x_intf = libc::c_uint;
 pub const BME68X_I2C_INTF: bme68x_intf = 1;
 pub const BME68X_SPI_INTF: bme68x_intf = 0;
@@ -121,68 +118,30 @@ pub unsafe extern "C" fn bme68x_delay_us(period: u32, intf_ptr: *mut libc::c_voi
     std::thread::sleep(delay);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn bme68x_check_rslt(mut api_name: *const libc::c_char, mut rslt: int8_t) {
-    match rslt as libc::c_int {
-        0 => {}
-        -1 => {
-            printf(
-                b"API name [%s]  Error [%d] : Null pointer\r\n\0" as *const u8
-                    as *const libc::c_char,
-                api_name,
-                rslt as libc::c_int,
-            );
-        }
-        -2 => {
-            printf(
-                b"API name [%s]  Error [%d] : Communication failure\r\n\0" as *const u8
-                    as *const libc::c_char,
-                api_name,
-                rslt as libc::c_int,
-            );
-        }
-        -4 => {
-            printf(
-                b"API name [%s]  Error [%d] : Incorrect length parameter\r\n\0" as *const u8
-                    as *const libc::c_char,
-                api_name,
-                rslt as libc::c_int,
-            );
-        }
-        -3 => {
-            printf(
-                b"API name [%s]  Error [%d] : Device not found\r\n\0" as *const u8
-                    as *const libc::c_char,
-                api_name,
-                rslt as libc::c_int,
-            );
-        }
-        -5 => {
-            printf(
-                b"API name [%s]  Error [%d] : Self test error\r\n\0" as *const u8
-                    as *const libc::c_char,
-                api_name,
-                rslt as libc::c_int,
-            );
-        }
-        2 => {
-            printf(
-                b"API name [%s]  Warning [%d] : No new data found\r\n\0" as *const u8
-                    as *const libc::c_char,
-                api_name,
-                rslt as libc::c_int,
-            );
-        }
-        _ => {
-            printf(
-                b"API name [%s]  Error [%d] : Unknown error code\r\n\0" as *const u8
-                    as *const libc::c_char,
-                api_name,
-                rslt as libc::c_int,
-            );
-        }
-    };
+#[derive(Debug)]
+pub enum Error {
+    NullPointer(String),
+    CommunicationFailure(String),
+    IncorrectLengthParameter(String),
+    DeviceNotFound(String),
+    SelfTestError(String),
+    NoNewDataFound(String),
+    Unknown(String),
 }
+
+pub fn check_rslt(api_name: String, rslt: i8) -> Result<(), Error> {
+    match rslt {
+        0 => Ok(()),
+        -1 => Err(Error::NullPointer(api_name)),
+        -2 => Err(Error::CommunicationFailure(api_name)),
+        -3 => Err(Error::DeviceNotFound(api_name)),
+        -4 => Err(Error::IncorrectLengthParameter(api_name)),
+        -5 => Err(Error::SelfTestError(api_name)),
+        2 => Err(Error::NoNewDataFound(api_name)),
+        _ => Err(Error::Unknown(api_name)),
+    }
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_interface_init(
     mut bme: *mut bme68x_dev,
