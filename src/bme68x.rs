@@ -54,9 +54,9 @@ pub struct bme68x_calib_data {
     pub res_heat_val: int8_t,
     pub range_sw_err: int8_t,
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[repr(C)]
-pub struct bme68x_conf {
+pub struct DeviceConf {
     pub os_hum: uint8_t,
     pub os_temp: uint8_t,
     pub os_pres: uint8_t,
@@ -65,7 +65,7 @@ pub struct bme68x_conf {
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct bme68x_heatr_conf {
+pub struct HeaterConf {
     pub enable: uint8_t,
     pub heatr_temp: uint16_t,
     pub heatr_dur: uint16_t,
@@ -74,9 +74,23 @@ pub struct bme68x_heatr_conf {
     pub profile_len: uint8_t,
     pub shared_heatr_dur: uint16_t,
 }
+impl Default for HeaterConf {
+    fn default() -> Self {
+        Self {
+            enable: 0,
+            heatr_temp: 0,
+            heatr_dur: 0,
+            heatr_temp_prof: 0 as *mut u16,
+            heatr_dur_prof: 0 as *mut u16,
+            profile_len: 0,
+            shared_heatr_dur: 0,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub struct bme68x_dev {
+pub struct Device {
     pub chip_id: uint8_t,
     pub intf_ptr: *mut libc::c_void,
     pub variant_id: uint32_t,
@@ -91,7 +105,7 @@ pub struct bme68x_dev {
     pub info_msg: uint8_t,
 }
 
-impl Default for bme68x_dev {
+impl Default for Device {
     fn default() -> Self {
         Self {
             chip_id: 0,
@@ -139,7 +153,7 @@ impl Default for bme68x_dev {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_init(mut dev: *mut bme68x_dev) -> int8_t {
+pub unsafe extern "C" fn bme68x_init(mut dev: *mut Device) -> int8_t {
     let mut rslt: int8_t = 0;
     rslt = bme68x_soft_reset(dev);
     if rslt as libc::c_int == 0 as libc::c_int {
@@ -167,7 +181,7 @@ pub unsafe extern "C" fn bme68x_set_regs(
     mut reg_addr: *const uint8_t,
     mut reg_data: *const uint8_t,
     mut len: uint32_t,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut tmp_buff: [uint8_t; 20] = [
@@ -239,7 +253,7 @@ pub unsafe extern "C" fn bme68x_get_regs(
     mut reg_addr: uint8_t,
     mut reg_data: *mut uint8_t,
     mut len: uint32_t,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     rslt = null_ptr_check(dev);
@@ -265,7 +279,7 @@ pub unsafe extern "C" fn bme68x_get_regs(
     return rslt;
 }
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_soft_reset(mut dev: *mut bme68x_dev) -> int8_t {
+pub unsafe extern "C" fn bme68x_soft_reset(mut dev: *mut Device) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut reg_addr: uint8_t = 0xe0 as libc::c_int as uint8_t;
     let mut soft_rst_cmd: uint8_t = 0xb6 as libc::c_int as uint8_t;
@@ -296,8 +310,8 @@ pub unsafe extern "C" fn bme68x_soft_reset(mut dev: *mut bme68x_dev) -> int8_t {
 }
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_set_conf(
-    mut conf: *mut bme68x_conf,
-    mut dev: *mut bme68x_dev,
+    mut conf: *mut DeviceConf,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut odr20: uint8_t = 0 as libc::c_int as uint8_t;
@@ -387,8 +401,8 @@ pub unsafe extern "C" fn bme68x_set_conf(
 }
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_get_conf(
-    mut conf: *mut bme68x_conf,
-    mut dev: *mut bme68x_dev,
+    mut conf: *mut DeviceConf,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut reg_addr: uint8_t = 0x71 as libc::c_int as uint8_t;
@@ -427,7 +441,7 @@ pub unsafe extern "C" fn bme68x_get_conf(
     return rslt;
 }
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_set_op_mode(op_mode: uint8_t, mut dev: *mut bme68x_dev) -> int8_t {
+pub unsafe extern "C" fn bme68x_set_op_mode(op_mode: uint8_t, mut dev: *mut Device) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut tmp_pow_mode: uint8_t = 0;
     let mut pow_mode: uint8_t = 0 as libc::c_int as uint8_t;
@@ -475,7 +489,7 @@ pub unsafe extern "C" fn bme68x_set_op_mode(op_mode: uint8_t, mut dev: *mut bme6
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_get_op_mode(
     mut op_mode: *mut uint8_t,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut mode: uint8_t = 0;
@@ -495,8 +509,8 @@ pub unsafe extern "C" fn bme68x_get_op_mode(
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_get_meas_dur(
     op_mode: uint8_t,
-    mut conf: *mut bme68x_conf,
-    mut dev: *mut bme68x_dev,
+    mut conf: *mut DeviceConf,
+    mut dev: *mut Device,
 ) -> uint32_t {
     let mut rslt: int8_t = 0;
     let mut meas_dur: uint32_t = 0 as libc::c_int as uint32_t;
@@ -545,7 +559,7 @@ pub unsafe extern "C" fn bme68x_get_data(
     mut op_mode: uint8_t,
     mut data: *mut bme68x_data,
     mut n_data: *mut uint8_t,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut i: uint8_t = 0 as libc::c_int as uint8_t;
@@ -660,8 +674,8 @@ pub unsafe extern "C" fn bme68x_get_data(
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_set_heatr_conf(
     mut op_mode: uint8_t,
-    mut conf: *const bme68x_heatr_conf,
-    mut dev: *mut bme68x_dev,
+    mut conf: *const HeaterConf,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut nb_conv: uint8_t = 0 as libc::c_int as uint8_t;
@@ -726,8 +740,8 @@ pub unsafe extern "C" fn bme68x_set_heatr_conf(
 }
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_get_heatr_conf(
-    mut conf: *const bme68x_heatr_conf,
-    mut dev: *mut bme68x_dev,
+    mut conf: *const HeaterConf,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut data_array: [uint8_t; 10] = [0 as libc::c_int as uint8_t, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -769,7 +783,7 @@ pub unsafe extern "C" fn bme68x_get_heatr_conf(
     return rslt;
 }
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_selftest_check(mut dev: *const bme68x_dev) -> int8_t {
+pub unsafe extern "C" fn bme68x_selftest_check(mut dev: *const Device) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut n_fields: uint8_t = 0;
     let mut i: uint8_t = 0 as libc::c_int as uint8_t;
@@ -850,7 +864,7 @@ pub unsafe extern "C" fn bme68x_selftest_check(mut dev: *const bme68x_dev) -> in
             gas_resistance: 0.,
         },
     ];
-    let mut t_dev: bme68x_dev = bme68x_dev {
+    let mut t_dev: Device = Device {
         chip_id: 0,
         intf_ptr: 0 as *mut libc::c_void,
         variant_id: 0,
@@ -892,14 +906,14 @@ pub unsafe extern "C" fn bme68x_selftest_check(mut dev: *const bme68x_dev) -> in
         intf_rslt: 0,
         info_msg: 0,
     };
-    let mut conf: bme68x_conf = bme68x_conf {
+    let mut conf: DeviceConf = DeviceConf {
         os_hum: 0,
         os_temp: 0,
         os_pres: 0,
         filter: 0,
         odr: 0,
     };
-    let mut heatr_conf: bme68x_heatr_conf = bme68x_heatr_conf {
+    let mut heatr_conf: HeaterConf = HeaterConf {
         enable: 0,
         heatr_temp: 0,
         heatr_dur: 0,
@@ -990,7 +1004,7 @@ pub unsafe extern "C" fn bme68x_selftest_check(mut dev: *const bme68x_dev) -> in
 }
 unsafe extern "C" fn calc_temperature(
     mut temp_adc: uint32_t,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> libc::c_float {
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
@@ -1009,7 +1023,7 @@ unsafe extern "C" fn calc_temperature(
 }
 unsafe extern "C" fn calc_pressure(
     mut pres_adc: uint32_t,
-    mut dev: *const bme68x_dev,
+    mut dev: *const Device,
 ) -> libc::c_float {
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
@@ -1039,10 +1053,7 @@ unsafe extern "C" fn calc_pressure(
     }
     return calc_pres;
 }
-unsafe extern "C" fn calc_humidity(
-    mut hum_adc: uint16_t,
-    mut dev: *const bme68x_dev,
-) -> libc::c_float {
+unsafe extern "C" fn calc_humidity(mut hum_adc: uint16_t, mut dev: *const Device) -> libc::c_float {
     let mut calc_hum: libc::c_float = 0.;
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
@@ -1071,7 +1082,7 @@ unsafe extern "C" fn calc_humidity(
 unsafe extern "C" fn calc_gas_resistance_low(
     mut gas_res_adc: uint16_t,
     mut gas_range: uint8_t,
-    mut dev: *const bme68x_dev,
+    mut dev: *const Device,
 ) -> libc::c_float {
     let mut calc_gas_res: libc::c_float = 0.;
     let mut var1: libc::c_float = 0.;
@@ -1107,7 +1118,7 @@ unsafe extern "C" fn calc_gas_resistance_high(
     calc_gas_res = 1000000.0f32 * var1 as libc::c_float / var2 as libc::c_float;
     return calc_gas_res;
 }
-unsafe extern "C" fn calc_res_heat(mut temp: uint16_t, mut dev: *const bme68x_dev) -> uint8_t {
+unsafe extern "C" fn calc_res_heat(mut temp: uint16_t, mut dev: *const Device) -> uint8_t {
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
     let mut var3: libc::c_float = 0.;
@@ -1150,7 +1161,7 @@ unsafe extern "C" fn calc_gas_wait(mut dur: uint16_t) -> uint8_t {
 unsafe extern "C" fn read_field_data(
     mut index: uint8_t,
     mut data: *mut bme68x_data,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0 as libc::c_int as int8_t;
     let mut buff: [uint8_t; 17] = [
@@ -1296,7 +1307,7 @@ unsafe extern "C" fn read_field_data(
 }
 unsafe extern "C" fn read_all_field_data(
     mut data: *const *mut bme68x_data,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0 as libc::c_int as int8_t;
     let mut buff: [uint8_t; 51] = [
@@ -1492,7 +1503,7 @@ unsafe extern "C" fn read_all_field_data(
     }
     return rslt;
 }
-unsafe extern "C" fn set_mem_page(mut reg_addr: uint8_t, mut dev: *mut bme68x_dev) -> int8_t {
+unsafe extern "C" fn set_mem_page(mut reg_addr: uint8_t, mut dev: *mut Device) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut reg: uint8_t = 0;
     let mut mem_page: uint8_t = 0;
@@ -1532,7 +1543,7 @@ unsafe extern "C" fn set_mem_page(mut reg_addr: uint8_t, mut dev: *mut bme68x_de
     }
     return rslt;
 }
-unsafe extern "C" fn get_mem_page(mut dev: *mut bme68x_dev) -> int8_t {
+unsafe extern "C" fn get_mem_page(mut dev: *mut Device) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut reg: uint8_t = 0;
     rslt = null_ptr_check(dev);
@@ -1554,7 +1565,7 @@ unsafe extern "C" fn get_mem_page(mut dev: *mut bme68x_dev) -> int8_t {
 unsafe extern "C" fn boundary_check(
     mut value: *mut uint8_t,
     mut max: uint8_t,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0;
     rslt = null_ptr_check(dev);
@@ -1569,7 +1580,7 @@ unsafe extern "C" fn boundary_check(
     }
     return rslt;
 }
-unsafe extern "C" fn null_ptr_check(mut dev: *const bme68x_dev) -> int8_t {
+unsafe extern "C" fn null_ptr_check(mut dev: *const Device) -> int8_t {
     let mut rslt: int8_t = 0 as libc::c_int as int8_t;
     if dev.is_null()
         || ((*dev).read).is_none()
@@ -1581,10 +1592,10 @@ unsafe extern "C" fn null_ptr_check(mut dev: *const bme68x_dev) -> int8_t {
     return rslt;
 }
 unsafe extern "C" fn set_conf(
-    mut conf: *const bme68x_heatr_conf,
+    mut conf: *const HeaterConf,
     mut op_mode: uint8_t,
     mut nb_conv: *mut uint8_t,
-    mut dev: *mut bme68x_dev,
+    mut dev: *mut Device,
 ) -> int8_t {
     let mut rslt: int8_t = 0 as libc::c_int as int8_t;
     let mut i: uint8_t = 0;
@@ -1819,7 +1830,7 @@ unsafe extern "C" fn analyze_sensor_data(
     }
     return rslt;
 }
-unsafe extern "C" fn get_calib_data(mut dev: *mut bme68x_dev) -> int8_t {
+unsafe extern "C" fn get_calib_data(mut dev: *mut Device) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut coeff_array: [uint8_t; 42] = [0; 42];
     rslt = bme68x_get_regs(
@@ -1914,7 +1925,7 @@ unsafe extern "C" fn get_calib_data(mut dev: *mut bme68x_dev) -> int8_t {
     }
     return rslt;
 }
-unsafe extern "C" fn read_variant_id(mut dev: *mut bme68x_dev) -> int8_t {
+unsafe extern "C" fn read_variant_id(mut dev: *mut Device) -> int8_t {
     let mut rslt: int8_t = 0;
     let mut reg_data: uint8_t = 0 as libc::c_int as uint8_t;
     rslt = bme68x_get_regs(

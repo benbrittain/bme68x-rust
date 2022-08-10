@@ -143,10 +143,7 @@ pub fn check_rslt(api_name: String, rslt: i8) -> Result<(), Error> {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_interface_init(
-    mut bme: *mut bme68x_dev,
-    mut intf: uint8_t,
-) -> int8_t {
+pub unsafe extern "C" fn bme68x_interface_init(mut bme: *mut Device, mut intf: uint8_t) -> int8_t {
     let mut rslt: int8_t = 0 as libc::c_int as int8_t;
     let ref mut fresh0 = (*bme).read;
     *fresh0 = Some(
