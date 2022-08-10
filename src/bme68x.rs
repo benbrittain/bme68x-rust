@@ -307,10 +307,8 @@ impl<I: Interface> Device<I> {
                 0x75 as libc::c_int as u8,
             ];
             let mut data_array: [u8; 5] = [0 as libc::c_int as u8, 0, 0, 0, 0];
-            rslt = bme68x_get_op_mode(&mut current_op_mode, self);
-            if rslt as libc::c_int == 0 as libc::c_int {
-                self.set_op_mode(0u8)?;
-            }
+            self.get_op_mode(&mut current_op_mode)?;
+            self.set_op_mode(0u8)?;
             if conf.is_null() {
                 rslt = -(1 as libc::c_int) as i8;
             } else if rslt as libc::c_int == 0 as libc::c_int {
@@ -455,71 +453,70 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
-}
-pub unsafe fn bme68x_get_op_mode<I: Interface>(op_mode: *mut u8, dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut mode: u8 = 0;
-    if !op_mode.is_null() {
-        rslt = bme68x_get_regs(
-            0x74 as libc::c_int as u8,
-            &mut mode,
-            1 as libc::c_int as u32,
-            dev,
-        );
-        *op_mode = (mode as libc::c_int & 0x3 as libc::c_int) as u8;
-    } else {
-        rslt = -(1 as libc::c_int) as i8;
-    }
-    return rslt;
-}
-pub unsafe fn bme68x_get_meas_dur<I: Interface>(
-    op_mode: u8,
-    conf: *mut DeviceConf,
-    dev: *mut Device<I>,
-) -> u32 {
-    let mut rslt: i8 = 0;
-    let mut meas_dur: u32 = 0 as libc::c_int as u32;
-    let mut meas_cycles: u32 = 0;
-    let os_to_meas_cycles: [u8; 6] = [
-        0 as libc::c_int as u8,
-        1 as libc::c_int as u8,
-        2 as libc::c_int as u8,
-        4 as libc::c_int as u8,
-        8 as libc::c_int as u8,
-        16 as libc::c_int as u8,
-    ];
-    if !conf.is_null() {
-        rslt = boundary_check(&mut (*conf).os_temp, 5 as libc::c_int as u8, dev);
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = boundary_check(&mut (*conf).os_pres, 5 as libc::c_int as u8, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = boundary_check(&mut (*conf).os_hum, 5 as libc::c_int as u8, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            meas_cycles = os_to_meas_cycles[(*conf).os_temp as usize] as u32;
-            meas_cycles = (meas_cycles as libc::c_uint)
-                .wrapping_add(os_to_meas_cycles[(*conf).os_pres as usize] as libc::c_uint)
-                as u32 as u32;
-            meas_cycles = (meas_cycles as libc::c_uint)
-                .wrapping_add(os_to_meas_cycles[(*conf).os_hum as usize] as libc::c_uint)
-                as u32 as u32;
-            meas_dur = meas_cycles.wrapping_mul(1963 as libc::c_uint);
-            meas_dur = (meas_dur as libc::c_uint)
-                .wrapping_add((477 as libc::c_int as libc::c_uint).wrapping_mul(4 as libc::c_uint))
-                as u32 as u32;
-            meas_dur = (meas_dur as libc::c_uint)
-                .wrapping_add((477 as libc::c_int as libc::c_uint).wrapping_mul(5 as libc::c_uint))
-                as u32 as u32;
-            if op_mode as libc::c_int != 2 as libc::c_int {
-                meas_dur =
-                    (meas_dur as libc::c_uint).wrapping_add(1000 as libc::c_uint) as u32 as u32;
+    pub fn get_op_mode(&mut self, op_mode: *mut u8) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut mode: u8 = 0;
+            if !op_mode.is_null() {
+                rslt = bme68x_get_regs(
+                    0x74 as libc::c_int as u8,
+                    &mut mode,
+                    1 as libc::c_int as u32,
+                    self,
+                );
+                *op_mode = (mode as libc::c_int & 0x3 as libc::c_int) as u8;
+            } else {
+                rslt = -(1 as libc::c_int) as i8;
             }
+            check_rslt(rslt)
         }
     }
-    return meas_dur;
-}
-impl<I: Interface> Device<I> {
+    pub fn get_meas_dur(&mut self, op_mode: u8, conf: *mut DeviceConf) -> u32 {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut meas_dur: u32 = 0 as libc::c_int as u32;
+            let mut meas_cycles: u32 = 0;
+            let os_to_meas_cycles: [u8; 6] = [
+                0 as libc::c_int as u8,
+                1 as libc::c_int as u8,
+                2 as libc::c_int as u8,
+                4 as libc::c_int as u8,
+                8 as libc::c_int as u8,
+                16 as libc::c_int as u8,
+            ];
+            if !conf.is_null() {
+                rslt = boundary_check(&mut (*conf).os_temp, 5 as libc::c_int as u8, self);
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = boundary_check(&mut (*conf).os_pres, 5 as libc::c_int as u8, self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = boundary_check(&mut (*conf).os_hum, 5 as libc::c_int as u8, self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    meas_cycles = os_to_meas_cycles[(*conf).os_temp as usize] as u32;
+                    meas_cycles = (meas_cycles as libc::c_uint)
+                        .wrapping_add(os_to_meas_cycles[(*conf).os_pres as usize] as libc::c_uint)
+                        as u32 as u32;
+                    meas_cycles = (meas_cycles as libc::c_uint)
+                        .wrapping_add(os_to_meas_cycles[(*conf).os_hum as usize] as libc::c_uint)
+                        as u32 as u32;
+                    meas_dur = meas_cycles.wrapping_mul(1963 as libc::c_uint);
+                    meas_dur = (meas_dur as libc::c_uint).wrapping_add(
+                        (477 as libc::c_int as libc::c_uint).wrapping_mul(4 as libc::c_uint),
+                    ) as u32 as u32;
+                    meas_dur = (meas_dur as libc::c_uint).wrapping_add(
+                        (477 as libc::c_int as libc::c_uint).wrapping_mul(5 as libc::c_uint),
+                    ) as u32 as u32;
+                    if op_mode as libc::c_int != 2 as libc::c_int {
+                        meas_dur = (meas_dur as libc::c_uint).wrapping_add(1000 as libc::c_uint)
+                            as u32 as u32;
+                    }
+                }
+            }
+            return meas_dur;
+        }
+    }
+
     pub fn get_data(
         &mut self,
         op_mode: u8,

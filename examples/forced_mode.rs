@@ -65,20 +65,18 @@ fn main() -> Result<(), Error> {
     heatr_conf.enable = 0x1;
     heatr_conf.heatr_temp = 300;
     heatr_conf.heatr_dur = 100;
-    bme.set_heatr_conf(1 as libc::c_int as u8, &mut heatr_conf)?;
+    bme.set_heatr_conf(1, &mut heatr_conf)?;
 
     let time_ms = std::time::Instant::now();
     println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
     for sample_count in 0..300 {
         // Set operating mode
-        bme.set_op_mode(1 as libc::c_int as u8)?;
+        bme.set_op_mode(1)?;
 
         // Delay the remaining duration that can be used for heating
-        let del_period = unsafe {
-            (bme68x_get_meas_dur(1 as libc::c_int as u8, &mut conf, &mut bme)).wrapping_add(
-                (heatr_conf.heatr_dur as libc::c_int * 1000 as libc::c_int) as libc::c_uint,
-            )
-        };
+        let del_period = bme
+            .get_meas_dur(1, &mut conf)
+            .wrapping_add(heatr_conf.heatr_dur as u32 * 1000);
         bme.intf.delay(del_period);
 
         // Get the sensor data
