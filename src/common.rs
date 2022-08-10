@@ -2,6 +2,7 @@ use libc;
 use libc::*;
 
 use crate::bme68x::*;
+use std::process::Command;
 
 extern "C" {
     fn printf(_: *const libc::c_char, _: ...) -> libc::c_int;
@@ -68,14 +69,28 @@ pub unsafe extern "C" fn bme68x_i2c_write(
 }
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_spi_read(
-    mut reg_addr: uint8_t,
-    mut reg_data: *mut uint8_t,
-    mut len: uint32_t,
+    mut reg_addr: u8,
+    mut reg_data: *mut u8,
+    mut len: u32,
     mut intf_ptr: *mut libc::c_void,
-) -> int8_t {
-    dbg!(reg_addr, reg_data, len, intf_ptr);
-    let mut dev_addr_0: uint8_t = *(intf_ptr as *mut uint8_t);
-    return -(1 as libc::c_int) as int8_t;
+) -> i8 {
+    let reg_slice: &mut [u8] = &mut *std::ptr::slice_from_raw_parts_mut(reg_data, len as usize);
+    println!("READ 0x{:x} {:?}", reg_addr, reg_slice);
+    let cmd = format!("s w 0x{:x} r {len} u", reg_addr);
+    let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
+        .arg("/dev/ttyUSB1")
+        .args(cmd.split(" "))
+        .output()
+        .unwrap();
+
+    let return_bytes: Vec<u8> = std::str::from_utf8(&output.stdout)
+        .unwrap()
+        .trim()
+        .split(",")
+        .map(|s| u8::from_str_radix(s.trim_start_matches("0x"), 16).unwrap())
+        .collect();
+    reg_slice.copy_from_slice(&return_bytes[..len as usize]);
+    return 0;
 }
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_spi_write(
@@ -84,11 +99,14 @@ pub unsafe extern "C" fn bme68x_spi_write(
     mut len: uint32_t,
     mut intf_ptr: *mut libc::c_void,
 ) -> int8_t {
-    let mut dev_addr_0: uint8_t = *(intf_ptr as *mut uint8_t);
+    todo!();
     return -(1 as libc::c_int) as int8_t;
 }
 #[no_mangle]
-pub unsafe extern "C" fn bme68x_delay_us(mut period: uint32_t, mut intf_ptr: *mut libc::c_void) {}
+pub unsafe extern "C" fn bme68x_delay_us(mut period: uint32_t, mut intf_ptr: *mut libc::c_void) {
+    todo!();
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn bme68x_check_rslt(mut api_name: *const libc::c_char, mut rslt: int8_t) {
     match rslt as libc::c_int {
