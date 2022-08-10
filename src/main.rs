@@ -1,9 +1,8 @@
 mod bme68x;
-mod common;
+mod interface;
 
 use bme68x::*;
-use common::bme68x_check_rslt;
-use common::bme68x_interface_init;
+use interface::{bme68x_check_rslt, bme68x_interface_init};
 
 use libc::*;
 
