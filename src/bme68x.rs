@@ -177,28 +177,7 @@ impl<I: Interface> Device<I> {
     ) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
-            let mut tmp_buff: [u8; 20] = [
-                0 as libc::c_int as u8,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ];
+            let mut tmp_buff: [u8; 20] = [0; 20];
             let mut index: u16 = 0;
             rslt = null_ptr_check(self);
             if rslt as libc::c_int == 0 as libc::c_int && !reg_addr.is_null() && !reg_data.is_null()
@@ -392,9 +371,7 @@ impl<I: Interface> Device<I> {
         }
     }
     pub fn set_op_mode(&mut self, op_mode: u8) -> Result<(), Error> {
-        let mut rslt: i8 = 0;
         let mut tmp_pow_mode: u8 = 0;
-        let mut pow_mode: u8 = 0 as libc::c_int as u8;
         let mut reg_addr: u8 = 0x74 as libc::c_int as u8;
         loop {
             self.get_regs(
@@ -402,26 +379,22 @@ impl<I: Interface> Device<I> {
                 &mut tmp_pow_mode,
                 1 as libc::c_int as u32,
             )?;
-            if rslt as libc::c_int == 0 as libc::c_int {
-                pow_mode = (tmp_pow_mode as libc::c_int & 0x3 as libc::c_int) as u8;
-                if pow_mode as libc::c_int != 0 as libc::c_int {
-                    tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)) as u8;
-                    self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
-                    (*self).intf.delay(10000 as libc::c_uint);
-                }
+            let pow_mode = (tmp_pow_mode as libc::c_int & 0x3 as libc::c_int) as u8;
+            if pow_mode as libc::c_int != 0 as libc::c_int {
+                tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)) as u8;
+                self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
+                (*self).intf.delay(10000 as libc::c_uint);
             }
-            if !(pow_mode as libc::c_int != 0 as libc::c_int
-                && rslt as libc::c_int == 0 as libc::c_int)
-            {
+            if !(pow_mode as libc::c_int != 0 as libc::c_int) {
                 break;
             }
         }
-        if op_mode as libc::c_int != 0 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int {
+        if op_mode as libc::c_int != 0 as libc::c_int {
             tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)
                 | op_mode as libc::c_int & 0x3 as libc::c_int) as u8;
             self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
         }
-        check_rslt(rslt)
+        Ok(())
     }
     pub fn get_op_mode(&mut self, op_mode: *mut u8) -> Result<(), Error> {
         unsafe {
@@ -440,6 +413,8 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
+
+    /// Used to get the remaining duration that can be used for heating.
     pub fn get_meas_dur(&mut self, op_mode: u8, conf: *mut DeviceConf) -> u32 {
         unsafe {
             let mut rslt: i8 = 0;

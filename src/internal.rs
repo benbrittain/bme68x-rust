@@ -795,7 +795,6 @@ pub(crate) unsafe fn analyze_sensor_data(data: *const SensorData, n_meas: u8) ->
     return rslt;
 }
 pub(crate) unsafe fn get_calib_data<I: Interface>(mut dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
     let mut coeff_array: [u8; 42] = [0; 42];
     (*dev)
         .get_regs(
@@ -804,75 +803,66 @@ pub(crate) unsafe fn get_calib_data<I: Interface>(mut dev: *mut Device<I>) -> i8
             23 as libc::c_int as u32,
         )
         .unwrap();
-    if rslt as libc::c_int == 0 as libc::c_int {
-        (*dev)
-            .get_regs(
-                0xe1 as libc::c_int as u8,
-                &mut *coeff_array.as_mut_ptr().offset(23 as libc::c_int as isize),
-                14 as libc::c_int as u32,
-            )
-            .unwrap();
-    }
-    if rslt as libc::c_int == 0 as libc::c_int {
-        (*dev)
-            .get_regs(
-                0 as libc::c_int as u8,
-                &mut *coeff_array
-                    .as_mut_ptr()
-                    .offset((23 as libc::c_int + 14 as libc::c_int) as isize),
-                5 as libc::c_int as u32,
-            )
-            .unwrap();
-    }
-    if rslt as libc::c_int == 0 as libc::c_int {
-        (*dev).calib.par_t1 = ((coeff_array[32] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[31] as u16 as libc::c_int) as u16;
-        (*dev).calib.par_t2 = ((coeff_array[1] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[0] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_t3 = coeff_array[2] as i8;
-        (*dev).calib.par_p1 = ((coeff_array[5] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[4] as u16 as libc::c_int) as u16;
-        (*dev).calib.par_p2 = ((coeff_array[7] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[6] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p3 = coeff_array[8] as i8;
-        (*dev).calib.par_p4 = ((coeff_array[11] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[10] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p5 = ((coeff_array[13] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[12] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p6 = coeff_array[15] as i8;
-        (*dev).calib.par_p7 = coeff_array[14] as i8;
-        (*dev).calib.par_p8 = ((coeff_array[19] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[18] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p9 = ((coeff_array[21] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[20] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_p10 = coeff_array[22];
-        (*dev).calib.par_h1 = ((coeff_array[25] as u16 as libc::c_int) << 4 as libc::c_int
-            | coeff_array[24] as libc::c_int & 0xf as libc::c_int)
-            as u16;
-        (*dev).calib.par_h2 = ((coeff_array[23] as u16 as libc::c_int) << 4 as libc::c_int
-            | coeff_array[24] as libc::c_int >> 4 as libc::c_int)
-            as u16;
-        (*dev).calib.par_h3 = coeff_array[26] as i8;
-        (*dev).calib.par_h4 = coeff_array[27] as i8;
-        (*dev).calib.par_h5 = coeff_array[28] as i8;
-        (*dev).calib.par_h6 = coeff_array[29];
-        (*dev).calib.par_h7 = coeff_array[30] as i8;
-        (*dev).calib.par_gh1 = coeff_array[35] as i8;
-        (*dev).calib.par_gh2 = ((coeff_array[34] as u16 as libc::c_int) << 8 as libc::c_int
-            | coeff_array[33] as u16 as libc::c_int) as i16;
-        (*dev).calib.par_gh3 = coeff_array[36] as i8;
-        (*dev).calib.res_heat_range =
-            ((coeff_array[39] as libc::c_int & 0x30 as libc::c_int) / 16 as libc::c_int) as u8;
-        (*dev).calib.res_heat_val = coeff_array[37] as i8;
-        (*dev).calib.range_sw_err = ((coeff_array[41] as libc::c_int & 0xf0 as libc::c_int) as i8
-            as libc::c_int
-            / 16 as libc::c_int) as i8;
-    }
-    return rslt;
+    (*dev)
+        .get_regs(
+            0xe1 as libc::c_int as u8,
+            &mut *coeff_array.as_mut_ptr().offset(23 as libc::c_int as isize),
+            14 as libc::c_int as u32,
+        )
+        .unwrap();
+    (*dev)
+        .get_regs(
+            0 as libc::c_int as u8,
+            &mut *coeff_array
+                .as_mut_ptr()
+                .offset((23 as libc::c_int + 14 as libc::c_int) as isize),
+            5 as libc::c_int as u32,
+        )
+        .unwrap();
+    (*dev).calib.par_t1 = ((coeff_array[32] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[31] as u16 as libc::c_int) as u16;
+    (*dev).calib.par_t2 = ((coeff_array[1] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[0] as u16 as libc::c_int) as i16;
+    (*dev).calib.par_t3 = coeff_array[2] as i8;
+    (*dev).calib.par_p1 = ((coeff_array[5] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[4] as u16 as libc::c_int) as u16;
+    (*dev).calib.par_p2 = ((coeff_array[7] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[6] as u16 as libc::c_int) as i16;
+    (*dev).calib.par_p3 = coeff_array[8] as i8;
+    (*dev).calib.par_p4 = ((coeff_array[11] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[10] as u16 as libc::c_int) as i16;
+    (*dev).calib.par_p5 = ((coeff_array[13] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[12] as u16 as libc::c_int) as i16;
+    (*dev).calib.par_p6 = coeff_array[15] as i8;
+    (*dev).calib.par_p7 = coeff_array[14] as i8;
+    (*dev).calib.par_p8 = ((coeff_array[19] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[18] as u16 as libc::c_int) as i16;
+    (*dev).calib.par_p9 = ((coeff_array[21] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[20] as u16 as libc::c_int) as i16;
+    (*dev).calib.par_p10 = coeff_array[22];
+    (*dev).calib.par_h1 = ((coeff_array[25] as u16 as libc::c_int) << 4 as libc::c_int
+        | coeff_array[24] as libc::c_int & 0xf as libc::c_int) as u16;
+    (*dev).calib.par_h2 = ((coeff_array[23] as u16 as libc::c_int) << 4 as libc::c_int
+        | coeff_array[24] as libc::c_int >> 4 as libc::c_int) as u16;
+    (*dev).calib.par_h3 = coeff_array[26] as i8;
+    (*dev).calib.par_h4 = coeff_array[27] as i8;
+    (*dev).calib.par_h5 = coeff_array[28] as i8;
+    (*dev).calib.par_h6 = coeff_array[29];
+    (*dev).calib.par_h7 = coeff_array[30] as i8;
+    (*dev).calib.par_gh1 = coeff_array[35] as i8;
+    (*dev).calib.par_gh2 = ((coeff_array[34] as u16 as libc::c_int) << 8 as libc::c_int
+        | coeff_array[33] as u16 as libc::c_int) as i16;
+    (*dev).calib.par_gh3 = coeff_array[36] as i8;
+    (*dev).calib.res_heat_range =
+        ((coeff_array[39] as libc::c_int & 0x30 as libc::c_int) / 16 as libc::c_int) as u8;
+    (*dev).calib.res_heat_val = coeff_array[37] as i8;
+    (*dev).calib.range_sw_err = ((coeff_array[41] as libc::c_int & 0xf0 as libc::c_int) as i8
+        as libc::c_int
+        / 16 as libc::c_int) as i8;
+    return 0;
 }
 
 pub(crate) unsafe fn read_variant_id<I: Interface>(mut dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
     let mut reg_data: u8 = 0 as libc::c_int as u8;
     (*dev)
         .get_regs(
@@ -881,8 +871,6 @@ pub(crate) unsafe fn read_variant_id<I: Interface>(mut dev: *mut Device<I>) -> i
             1 as libc::c_int as u32,
         )
         .unwrap();
-    if rslt as libc::c_int == 0 as libc::c_int {
-        (*dev).variant_id = reg_data as u32;
-    }
-    return rslt;
+    (*dev).variant_id = reg_data as u32;
+    return 0;
 }
