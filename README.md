@@ -2,6 +2,8 @@
 
 A Rust implementation of the BME68X Sensor API.
 
+[datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme688-ds000.pdf)
+
 
 ### Implementation
 This crate took a somewhat novel approach of using [c2rust](https://c2rust.com) as it's primary way of being ported. This was done so that the internal logic matches the upstream C library as closely as possible. It has been edited to provide a safe and ergonomic API. (Work in Progress)
