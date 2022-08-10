@@ -59,7 +59,6 @@ pub unsafe extern "C" fn bme68x_spi_write(
     _intf_ptr: *mut libc::c_void,
 ) -> i8 {
     let reg_slice: &[u8] = &*std::ptr::slice_from_raw_parts(reg_data, len as usize);
-    // println!("WRITE 0x{:x} {:X?}", reg_addr, reg_slice);
     let data: String = reg_slice.iter().map(|b| format!("0x{:x},", b)).collect();
     let cmd = format!("s w 0x{:x} w {} u", reg_addr, data);
     let output = Command::new("/home/ben/workspace/spidriver/c/build/spicl")
@@ -67,15 +66,6 @@ pub unsafe extern "C" fn bme68x_spi_write(
         .args(cmd.split(" "))
         .output()
         .unwrap();
-
-    let return_bytes = std::str::from_utf8(&output.stdout);
-    //
-    //        .unwrap()
-    //        .trim()
-    //        .split(",")
-    //        .map(|s| u8::from_str_radix(s.trim_start_matches("0x"), 16).unwrap())
-    //        .collect();
-    //    println!("{:x?}", return_bytes);
     return 0;
 }
 
@@ -112,6 +102,31 @@ pub fn check_rslt(api_name: String, rslt: i8) -> Result<(), Error> {
 pub trait Interface {
     /// Communication to the bme68x device occurs over SPI or I2C.
     fn interface_type() -> CommInterface;
+
+    /// Function for writing the sensor's registers through I2C bus.
+    fn i2c_read(_reg_addr: u8, _reg_data: &mut [u8]) {
+        unimplemented!("The interface over the I2C device must implement read. This is only called when the interface type is set to CommInterface::I2C.");
+    }
+
+    /// Function for writing the sensor's registers through I2C bus.
+    fn i2c_write(_reg_addr: u8, _reg_data: &[u8]) {
+        unimplemented!("The interface over the I2C device must implement read. This is only called when the interface type is set to CommInterface::I2C.");
+    }
+
+    /// Function for reading the sensor's registers through SPI bus.
+    fn spi_read(_reg_addr: u8, _reg_data: &mut [u8]) {
+        unimplemented!("The interface over the SPI device must implement read. This is only called when the interface type is set to CommInterface::SPI.");
+    }
+
+    /// Function for writing the sensor's registers through SPI bus.
+    fn spi_write(_reg_addr: u8, _reg_data: &[u8]) {
+        unimplemented!("The interface over the SPI device must implement write. This is only called when the interface type is set to CommInterface::SPI.");
+    }
+
+    /// Function for delaying in Microseconds.
+    fn delay(_us: u64) {
+        unimplemented!("The interface over the SPI/I2C device must implement a delay.")
+    }
 }
 
 #[no_mangle]
