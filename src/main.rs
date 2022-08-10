@@ -4,7 +4,7 @@ mod bme68x;
 mod interface;
 
 use bme68x::{Device, *};
-use interface::{bme68x_interface_init, check_rslt, Error, Interface};
+use interface::{check_rslt, Error, Interface};
 
 struct SpiDriver {}
 
@@ -52,10 +52,6 @@ impl Interface for SpiDriver {
 fn main() -> Result<(), Error> {
     // Init interface
     let mut bme = Device::new(SpiDriver {});
-    //    bme.interface_init()?;
-
-    let rslt = unsafe { bme68x_interface_init(&mut bme as *mut _, CommInterface::SPI) };
-    check_rslt(String::from("bme68x_interface_init"), rslt)?;
 
     // Init bme68x
     let rslt = unsafe { bme68x_init(&mut bme) };

@@ -1,6 +1,4 @@
 use crate::bme68x::*;
-use libc;
-use libc::*;
 
 #[derive(Debug)]
 pub enum Error {
@@ -62,26 +60,4 @@ pub trait Interface {
     fn delay(&self, _us: u32) {
         unimplemented!("The interface over the SPI/I2C device must implement a delay.")
     }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn bme68x_interface_init<I: Interface>(
-    mut bme: *mut Device<I>,
-    mut intf: CommInterface,
-) -> int8_t {
-    //let ref mut fresh0 = (*bme).read;
-    //*fresh0 = Some(
-    //    bme68x_spi_read
-    //        as unsafe extern "C" fn(uint8_t, *mut uint8_t, uint32_t, *mut libc::c_void) -> int8_t,
-    //);
-    //let ref mut fresh1 = (*bme).write;
-    //*fresh1 = Some(
-    //    bme68x_spi_write
-    //        as unsafe extern "C" fn(uint8_t, *const uint8_t, uint32_t, *mut libc::c_void) -> int8_t,
-    //);
-    //(*bme).intf = CommInterface::SPI;
-    //let ref mut fresh2 = (*bme).delay_us;
-    //*fresh2 = Some(bme68x_delay_us as unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> ());
-    (*bme).amb_temp = 25;
-    return 0;
 }

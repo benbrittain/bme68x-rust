@@ -102,12 +102,15 @@ pub struct Device<I: Interface> {
 
 impl<I: Interface> Device<I> {
     pub fn new(intf: I) -> Self {
+        // NOTE moved amb_temp from bme68x_interface_init since everything else that function did
+        // is now contained within the interface trait.
+        let amb_temp = 25;
         Self {
             chip_id: 0,
             variant_id: 0,
             intf,
             mem_page: 0,
-            amb_temp: 0,
+            amb_temp,
             calib: bme68x_calib_data {
                 par_h1: 0,
                 par_h2: 0,
