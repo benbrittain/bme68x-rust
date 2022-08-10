@@ -7,8 +7,9 @@ use interface::{bme68x_interface_init, check_rslt, Error};
 fn main() -> Result<(), Error> {
     // Init interface
     let mut bme: Device = Device::default();
-    let rslt =
-        unsafe { bme68x_interface_init(&mut bme as *mut _, BME68X_SPI_INTF as libc::c_int as u8) };
+    //    bme.interface_init()?;
+
+    let rslt = unsafe { bme68x_interface_init(&mut bme as *mut _, CommInterface::SPI) };
     check_rslt(String::from("bme68x_interface_init"), rslt)?;
 
     // Init bme68x

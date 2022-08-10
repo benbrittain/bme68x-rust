@@ -6,9 +6,13 @@ pub type bme68x_read_fptr_t =
 pub type bme68x_write_fptr_t =
     Option<unsafe extern "C" fn(uint8_t, *const uint8_t, uint32_t, *mut libc::c_void) -> int8_t>;
 pub type bme68x_delay_us_fptr_t = Option<unsafe extern "C" fn(uint32_t, *mut libc::c_void) -> ()>;
-pub type bme68x_intf = libc::c_uint;
-pub const BME68X_I2C_INTF: bme68x_intf = 1;
-pub const BME68X_SPI_INTF: bme68x_intf = 0;
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum CommInterface {
+    SPI = 0,
+    I2C = 1,
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct bme68x_data {
@@ -94,7 +98,7 @@ pub struct Device {
     pub chip_id: uint8_t,
     pub intf_ptr: *mut libc::c_void,
     pub variant_id: uint32_t,
-    pub intf: bme68x_intf,
+    pub intf: CommInterface,
     pub mem_page: uint8_t,
     pub amb_temp: int8_t,
     pub calib: bme68x_calib_data,
@@ -111,7 +115,7 @@ impl Default for Device {
             chip_id: 0,
             intf_ptr: 0 as *mut libc::c_void,
             variant_id: 0,
-            intf: BME68X_SPI_INTF,
+            intf: CommInterface::SPI,
             mem_page: 0,
             amb_temp: 0,
             calib: bme68x_calib_data {
@@ -214,7 +218,7 @@ pub unsafe extern "C" fn bme68x_set_regs(
         {
             index = 0 as libc::c_int as uint16_t;
             while (index as libc::c_uint) < len {
-                if (*dev).intf as libc::c_uint == BME68X_SPI_INTF as libc::c_int as libc::c_uint {
+                if (*dev).intf == CommInterface::SPI {
                     rslt = set_mem_page(*reg_addr.offset(index as isize), dev);
                     tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
                         (*reg_addr.offset(index as isize) as libc::c_int & 0x7f as libc::c_int)
@@ -258,7 +262,7 @@ pub unsafe extern "C" fn bme68x_get_regs(
     let mut rslt: int8_t = 0;
     rslt = null_ptr_check(dev);
     if rslt as libc::c_int == 0 as libc::c_int && !reg_data.is_null() {
-        if (*dev).intf as libc::c_uint == BME68X_SPI_INTF as libc::c_int as libc::c_uint {
+        if (*dev).intf == CommInterface::SPI {
             rslt = set_mem_page(reg_addr, dev);
             if rslt as libc::c_int == 0 as libc::c_int {
                 reg_addr = (reg_addr as libc::c_int | 0x80 as libc::c_int) as uint8_t;
@@ -285,7 +289,7 @@ pub unsafe extern "C" fn bme68x_soft_reset(mut dev: *mut Device) -> int8_t {
     let mut soft_rst_cmd: uint8_t = 0xb6 as libc::c_int as uint8_t;
     rslt = null_ptr_check(dev);
     if rslt as libc::c_int == 0 as libc::c_int {
-        if (*dev).intf as libc::c_uint == BME68X_SPI_INTF as libc::c_int as libc::c_uint {
+        if (*dev).intf == CommInterface::SPI {
             rslt = get_mem_page(dev);
         }
         if rslt as libc::c_int == 0 as libc::c_int {
@@ -300,7 +304,7 @@ pub unsafe extern "C" fn bme68x_soft_reset(mut dev: *mut Device) -> int8_t {
                 (*dev).intf_ptr,
             );
             if rslt as libc::c_int == 0 as libc::c_int {
-                if (*dev).intf as libc::c_uint == BME68X_SPI_INTF as libc::c_int as libc::c_uint {
+                if (*dev).intf == CommInterface::SPI {
                     rslt = get_mem_page(dev);
                 }
             }
@@ -868,7 +872,7 @@ pub unsafe extern "C" fn bme68x_selftest_check(mut dev: *const Device) -> int8_t
         chip_id: 0,
         intf_ptr: 0 as *mut libc::c_void,
         variant_id: 0,
-        intf: BME68X_SPI_INTF,
+        intf: CommInterface::SPI,
         mem_page: 0,
         amb_temp: 0,
         calib: bme68x_calib_data {
