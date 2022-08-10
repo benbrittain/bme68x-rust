@@ -1,7 +1,6 @@
 // TODO work through these and remove them
 #![allow(dead_code)]
 #![allow(unused_assignments)]
-#![allow(unused_mut)]
 
 use std::process::Command;
 

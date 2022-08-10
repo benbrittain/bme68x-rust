@@ -172,9 +172,9 @@ impl<I: Interface> Device<I> {
     }
 }
 pub unsafe fn bme68x_set_regs<I: Interface>(
-    mut reg_addr: *const u8,
-    mut reg_data: *const u8,
-    mut len: u32,
+    reg_addr: *const u8,
+    reg_data: *const u8,
+    len: u32,
     mut dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
@@ -243,8 +243,8 @@ pub unsafe fn bme68x_set_regs<I: Interface>(
 }
 pub unsafe fn bme68x_get_regs<I: Interface>(
     mut reg_addr: u8,
-    mut reg_data: *mut u8,
-    mut len: u32,
+    reg_data: *mut u8,
+    len: u32,
     mut dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
@@ -265,7 +265,7 @@ pub unsafe fn bme68x_get_regs<I: Interface>(
     }
     return rslt;
 }
-pub unsafe fn bme68x_soft_reset<I: Interface>(mut dev: *mut Device<I>) -> i8 {
+pub unsafe fn bme68x_soft_reset<I: Interface>(dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let mut reg_addr: u8 = 0xe0 as libc::c_int as u8;
     let mut soft_rst_cmd: u8 = 0xb6 as libc::c_int as u8;
@@ -292,7 +292,7 @@ pub unsafe fn bme68x_soft_reset<I: Interface>(mut dev: *mut Device<I>) -> i8 {
     return rslt;
 }
 pub unsafe fn bme68x_set_conf<I: Interface>(
-    mut conf: *mut DeviceConf,
+    conf: *mut DeviceConf,
     mut dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
@@ -382,10 +382,10 @@ pub unsafe fn bme68x_set_conf<I: Interface>(
 }
 pub unsafe fn bme68x_get_conf<I: Interface>(
     mut conf: *mut DeviceConf,
-    mut dev: *mut Device<I>,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
-    let mut reg_addr: u8 = 0x71 as libc::c_int as u8;
+    let reg_addr: u8 = 0x71 as libc::c_int as u8;
     let mut data_array: [u8; 5] = [0; 5];
     rslt = bme68x_get_regs(
         reg_addr,
@@ -420,7 +420,7 @@ pub unsafe fn bme68x_get_conf<I: Interface>(
     }
     return rslt;
 }
-pub unsafe fn bme68x_set_op_mode<I: Interface>(op_mode: u8, mut dev: *mut Device<I>) -> i8 {
+pub unsafe fn bme68x_set_op_mode<I: Interface>(op_mode: u8, dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let mut tmp_pow_mode: u8 = 0;
     let mut pow_mode: u8 = 0 as libc::c_int as u8;
@@ -463,8 +463,8 @@ pub unsafe fn bme68x_set_op_mode<I: Interface>(op_mode: u8, mut dev: *mut Device
     return rslt;
 }
 pub unsafe fn bme68x_get_op_mode<I: Interface>(
-    mut op_mode: *mut u8,
-    mut dev: *mut Device<I>,
+    op_mode: *mut u8,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
     let mut mode: u8 = 0;
@@ -483,13 +483,13 @@ pub unsafe fn bme68x_get_op_mode<I: Interface>(
 }
 pub unsafe fn bme68x_get_meas_dur<I: Interface>(
     op_mode: u8,
-    mut conf: *mut DeviceConf,
-    mut dev: *mut Device<I>,
+    conf: *mut DeviceConf,
+    dev: *mut Device<I>,
 ) -> u32 {
     let mut rslt: i8 = 0;
     let mut meas_dur: u32 = 0 as libc::c_int as u32;
     let mut meas_cycles: u32 = 0;
-    let mut os_to_meas_cycles: [u8; 6] = [
+    let os_to_meas_cycles: [u8; 6] = [
         0 as libc::c_int as u8,
         1 as libc::c_int as u8,
         2 as libc::c_int as u8,
@@ -529,10 +529,10 @@ pub unsafe fn bme68x_get_meas_dur<I: Interface>(
     return meas_dur;
 }
 pub unsafe fn bme68x_get_data<I: Interface>(
-    mut op_mode: u8,
-    mut data: *mut bme68x_data,
-    mut n_data: *mut u8,
-    mut dev: *mut Device<I>,
+    op_mode: u8,
+    data: *mut bme68x_data,
+    n_data: *mut u8,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
     let mut i: u8 = 0 as libc::c_int as u8;
@@ -545,7 +545,7 @@ pub unsafe fn bme68x_get_data<I: Interface>(
     ];
     let mut field_data: [bme68x_data; 3] = [
         {
-            let mut init = bme68x_data {
+            let init = bme68x_data {
                 status: 0 as libc::c_int as u8,
                 gas_index: 0,
                 meas_index: 0,
@@ -645,9 +645,9 @@ pub unsafe fn bme68x_get_data<I: Interface>(
     return rslt;
 }
 pub unsafe fn bme68x_set_heatr_conf<I: Interface>(
-    mut op_mode: u8,
-    mut conf: *const HeaterConf,
-    mut dev: *mut Device<I>,
+    op_mode: u8,
+    conf: *const HeaterConf,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
     let mut nb_conv: u8 = 0 as libc::c_int as u8;
@@ -707,8 +707,8 @@ pub unsafe fn bme68x_set_heatr_conf<I: Interface>(
     return rslt;
 }
 pub unsafe fn bme68x_get_heatr_conf<I: Interface>(
-    mut conf: *const HeaterConf,
-    mut dev: *mut Device<I>,
+    conf: *const HeaterConf,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
     let mut data_array: [u8; 10] = [0 as libc::c_int as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -750,7 +750,7 @@ pub unsafe fn bme68x_get_heatr_conf<I: Interface>(
 }
 
 unsafe fn calc_temperature<I: Interface>(
-    mut temp_adc: u32,
+    temp_adc: u32,
     mut dev: *mut Device<I>,
 ) -> libc::c_float {
     let mut var1: libc::c_float = 0.;
@@ -769,8 +769,8 @@ unsafe fn calc_temperature<I: Interface>(
     return calc_temp;
 }
 unsafe fn calc_pressure<I: Interface>(
-    mut pres_adc: u32,
-    mut dev: *const Device<I>,
+    pres_adc: u32,
+    dev: *const Device<I>,
 ) -> libc::c_float {
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
@@ -801,8 +801,8 @@ unsafe fn calc_pressure<I: Interface>(
     return calc_pres;
 }
 unsafe fn calc_humidity<I: Interface>(
-    mut hum_adc: u16,
-    mut dev: *const Device<I>,
+    hum_adc: u16,
+    dev: *const Device<I>,
 ) -> libc::c_float {
     let mut calc_hum: libc::c_float = 0.;
     let mut var1: libc::c_float = 0.;
@@ -830,16 +830,16 @@ unsafe fn calc_humidity<I: Interface>(
     return calc_hum;
 }
 unsafe fn calc_gas_resistance_low<I: Interface>(
-    mut gas_res_adc: u16,
-    mut gas_range: u8,
-    mut dev: *const Device<I>,
+    gas_res_adc: u16,
+    gas_range: u8,
+    dev: *const Device<I>,
 ) -> libc::c_float {
     let mut calc_gas_res: libc::c_float = 0.;
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
     let mut var3: libc::c_float = 0.;
-    let mut gas_res_f: libc::c_float = gas_res_adc as libc::c_float;
-    let mut gas_range_f: libc::c_float =
+    let gas_res_f: libc::c_float = gas_res_adc as libc::c_float;
+    let gas_range_f: libc::c_float =
         ((1 as libc::c_uint) << gas_range as libc::c_int) as libc::c_float;
     let lookup_k1_range: [libc::c_float; 16] = [
         0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32, -1.0f32, 0.0f32, -0.8f32, 0.0f32, 0.0f32, -0.2f32,
@@ -856,16 +856,16 @@ unsafe fn calc_gas_resistance_low<I: Interface>(
         1.0f32 / (var3 * 0.000000125f32 * gas_range_f * ((gas_res_f - 512.0f32) / var2 + 1.0f32));
     return calc_gas_res;
 }
-unsafe fn calc_gas_resistance_high(mut gas_res_adc: u16, mut gas_range: u8) -> libc::c_float {
+unsafe fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> libc::c_float {
     let mut calc_gas_res: libc::c_float = 0.;
-    let mut var1: u32 = 262144 as libc::c_uint >> gas_range as libc::c_int;
+    let var1: u32 = 262144 as libc::c_uint >> gas_range as libc::c_int;
     let mut var2: i32 = gas_res_adc as i32 - 512 as libc::c_int;
     var2 *= 3 as libc::c_int;
     var2 = 4096 as libc::c_int + var2;
     calc_gas_res = 1000000.0f32 * var1 as libc::c_float / var2 as libc::c_float;
     return calc_gas_res;
 }
-unsafe fn calc_res_heat<I: Interface>(mut temp: u16, mut dev: *const Device<I>) -> u8 {
+unsafe fn calc_res_heat<I: Interface>(mut temp: u16, dev: *const Device<I>) -> u8 {
     let mut var1: libc::c_float = 0.;
     let mut var2: libc::c_float = 0.;
     let mut var3: libc::c_float = 0.;
@@ -906,9 +906,9 @@ unsafe fn calc_gas_wait(mut dur: u16) -> u8 {
     return durval;
 }
 unsafe fn read_field_data<I: Interface>(
-    mut index: u8,
+    index: u8,
     mut data: *mut bme68x_data,
-    mut dev: *mut Device<I>,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
     let mut buff: [u8; 17] = [
@@ -1050,8 +1050,8 @@ unsafe fn read_field_data<I: Interface>(
     return rslt;
 }
 unsafe fn read_all_field_data<I: Interface>(
-    mut data: *const *mut bme68x_data,
-    mut dev: *mut Device<I>,
+    data: *const *mut bme68x_data,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
     let mut buff: [u8; 51] = [
@@ -1245,7 +1245,7 @@ unsafe fn read_all_field_data<I: Interface>(
     }
     return rslt;
 }
-unsafe fn set_mem_page<I: Interface>(mut reg_addr: u8, mut dev: *mut Device<I>) -> i8 {
+unsafe fn set_mem_page<I: Interface>(reg_addr: u8, mut dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let mut reg: u8 = 0;
     let mut mem_page: u8 = 0;
@@ -1302,9 +1302,9 @@ unsafe fn get_mem_page<I: Interface>(mut dev: *mut Device<I>) -> i8 {
     return rslt;
 }
 unsafe fn boundary_check<I: Interface>(
-    mut value: *mut u8,
-    mut max: u8,
-    mut dev: *mut Device<I>,
+    value: *mut u8,
+    max: u8,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0;
     rslt = null_ptr_check(dev);
@@ -1319,7 +1319,7 @@ unsafe fn boundary_check<I: Interface>(
     }
     return rslt;
 }
-unsafe fn null_ptr_check<I: Interface>(mut dev: *const Device<I>) -> i8 {
+unsafe fn null_ptr_check<I: Interface>(dev: *const Device<I>) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
     if dev.is_null() {
         rslt = -(1 as libc::c_int) as i8;
@@ -1327,10 +1327,10 @@ unsafe fn null_ptr_check<I: Interface>(mut dev: *const Device<I>) -> i8 {
     return rslt;
 }
 unsafe fn set_conf<I: Interface>(
-    mut conf: *const HeaterConf,
-    mut op_mode: u8,
-    mut nb_conv: *mut u8,
-    mut dev: *mut Device<I>,
+    conf: *const HeaterConf,
+    op_mode: u8,
+    nb_conv: *mut u8,
+    dev: *mut Device<I>,
 ) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
     let mut i: u8 = 0;
@@ -1481,9 +1481,9 @@ unsafe fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
     return heatdurval;
 }
 unsafe fn sort_sensor_data(
-    mut low_index: u8,
-    mut high_index: u8,
-    mut field: *mut *mut bme68x_data,
+    low_index: u8,
+    high_index: u8,
+    field: *mut *mut bme68x_data,
 ) {
     let mut meas_index1: i16 = 0;
     let mut meas_index2: i16 = 0;
@@ -1492,7 +1492,7 @@ unsafe fn sort_sensor_data(
     if (**field.offset(low_index as isize)).status as libc::c_int & 0x80 as libc::c_int != 0
         && (**field.offset(high_index as isize)).status as libc::c_int & 0x80 as libc::c_int != 0
     {
-        let mut diff: i16 = (meas_index2 as libc::c_int - meas_index1 as libc::c_int) as i16;
+        let diff: i16 = (meas_index2 as libc::c_int - meas_index1 as libc::c_int) as i16;
         if diff as libc::c_int > -(3 as libc::c_int) && (diff as libc::c_int) < 0 as libc::c_int
             || diff as libc::c_int > 2 as libc::c_int
         {
@@ -1503,7 +1503,7 @@ unsafe fn sort_sensor_data(
         swap_fields(low_index, high_index, field);
     }
 }
-unsafe fn swap_fields(mut index1: u8, mut index2: u8, mut field: *mut *mut bme68x_data) {
+unsafe fn swap_fields(index1: u8, index2: u8, field: *mut *mut bme68x_data) {
     let mut temp: *mut bme68x_data = 0 as *mut bme68x_data;
     temp = *field.offset(index1 as isize);
     let ref mut fresh9 = *field.offset(index1 as isize);
@@ -1511,7 +1511,7 @@ unsafe fn swap_fields(mut index1: u8, mut index2: u8, mut field: *mut *mut bme68
     let ref mut fresh10 = *field.offset(index2 as isize);
     *fresh10 = temp;
 }
-unsafe fn analyze_sensor_data(mut data: *const bme68x_data, mut n_meas: u8) -> i8 {
+unsafe fn analyze_sensor_data(data: *const bme68x_data, n_meas: u8) -> i8 {
     let mut rslt: i8 = 0 as libc::c_int as i8;
     let mut self_test_failed: u8 = 0 as libc::c_int as u8;
     let mut i: u8 = 0;
