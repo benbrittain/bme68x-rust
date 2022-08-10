@@ -91,7 +91,6 @@ impl Default for HeaterConf {
 #[repr(C)]
 pub struct Device<I: Interface> {
     pub intf: I,
-    pub chip_id: u8,
     pub variant_id: u32,
     pub mem_page: u8,
     pub amb_temp: i8,
@@ -106,7 +105,6 @@ impl<I: Interface> Device<I> {
         // is now contained within the interface trait.
         let amb_temp = 25;
         Self {
-            chip_id: 0,
             variant_id: 0,
             intf,
             mem_page: 0,
@@ -148,16 +146,16 @@ impl<I: Interface> Device<I> {
     pub fn init(&mut self) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
-            rslt = bme68x_soft_reset(self);
+            self.soft_reset()?;
             if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = bme68x_get_regs(
+                let mut chip_id = 0;
+                self.get_regs(
                     0xd0 as libc::c_int as u8,
-                    &mut (*self).chip_id,
+                    &mut chip_id,
                     1 as libc::c_int as u32,
-                    self,
-                );
+                )?;
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    if (*self).chip_id as libc::c_int == 0x61 as libc::c_int {
+                    if chip_id == 0x61 {
                         rslt = read_variant_id(self);
                         if rslt as libc::c_int == 0 as libc::c_int {
                             rslt = get_calib_data(self);
@@ -170,129 +168,122 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
-}
-pub unsafe fn bme68x_set_regs<I: Interface>(
-    reg_addr: *const u8,
-    reg_data: *const u8,
-    len: u32,
-    mut dev: *mut Device<I>,
-) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut tmp_buff: [u8; 20] = [
-        0 as libc::c_int as u8,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-    ];
-    let mut index: u16 = 0;
-    rslt = null_ptr_check(dev);
-    if rslt as libc::c_int == 0 as libc::c_int && !reg_addr.is_null() && !reg_data.is_null() {
-        if len > 0 as libc::c_int as libc::c_uint
-            && len <= (20 as libc::c_int / 2 as libc::c_int) as libc::c_uint
-        {
-            index = 0 as libc::c_int as u16;
-            while (index as libc::c_uint) < len {
-                if (*dev).intf.interface_type() == CommInterface::SPI {
-                    rslt = set_mem_page(*reg_addr.offset(index as isize), dev);
-                    tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
-                        (*reg_addr.offset(index as isize) as libc::c_int & 0x7f as libc::c_int)
-                            as u8;
+    pub fn set_regs(
+        &mut self,
+        reg_addr: *const u8,
+        reg_data: *const u8,
+        len: u32,
+    ) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut tmp_buff: [u8; 20] = [
+                0 as libc::c_int as u8,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+            ];
+            let mut index: u16 = 0;
+            rslt = null_ptr_check(self);
+            if rslt as libc::c_int == 0 as libc::c_int && !reg_addr.is_null() && !reg_data.is_null()
+            {
+                if len > 0 as libc::c_int as libc::c_uint
+                    && len <= (20 as libc::c_int / 2 as libc::c_int) as libc::c_uint
+                {
+                    index = 0 as libc::c_int as u16;
+                    while (index as libc::c_uint) < len {
+                        if (*self).intf.interface_type() == CommInterface::SPI {
+                            rslt = set_mem_page(*reg_addr.offset(index as isize), self);
+                            tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
+                                (*reg_addr.offset(index as isize) as libc::c_int
+                                    & 0x7f as libc::c_int) as u8;
+                        } else {
+                            tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
+                                *reg_addr.offset(index as isize);
+                        }
+                        tmp_buff[(2 as libc::c_int * index as libc::c_int + 1 as libc::c_int)
+                            as usize] = *reg_data.offset(index as isize);
+                        index = index.wrapping_add(1);
+                    }
+                    if rslt as libc::c_int == 0 as libc::c_int {
+                        (*self).intf_rslt = (*self).intf.write_raw(
+                            tmp_buff[0],
+                            &mut *tmp_buff.as_mut_ptr().offset(1 as libc::c_int as isize),
+                            (2 as libc::c_int as libc::c_uint)
+                                .wrapping_mul(len)
+                                .wrapping_sub(1 as libc::c_int as libc::c_uint),
+                        );
+                        if (*self).intf_rslt as libc::c_int != 0 as libc::c_int {
+                            rslt = -(2 as libc::c_int) as i8;
+                        }
+                    }
                 } else {
-                    tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
-                        *reg_addr.offset(index as isize);
+                    rslt = -(4 as libc::c_int) as i8;
                 }
-                tmp_buff[(2 as libc::c_int * index as libc::c_int + 1 as libc::c_int) as usize] =
-                    *reg_data.offset(index as isize);
-                index = index.wrapping_add(1);
+            } else {
+                rslt = -(1 as libc::c_int) as i8;
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
-                (*dev).intf_rslt = (*dev).intf.write_raw(
-                    tmp_buff[0],
-                    &mut *tmp_buff.as_mut_ptr().offset(1 as libc::c_int as isize),
-                    (2 as libc::c_int as libc::c_uint)
-                        .wrapping_mul(len)
-                        .wrapping_sub(1 as libc::c_int as libc::c_uint),
-                );
-                if (*dev).intf_rslt as libc::c_int != 0 as libc::c_int {
+            check_rslt(rslt)
+        }
+    }
+    pub fn get_regs(&mut self, mut reg_addr: u8, reg_data: *mut u8, len: u32) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            rslt = null_ptr_check(self);
+            if rslt as libc::c_int == 0 as libc::c_int && !reg_data.is_null() {
+                if (*self).intf.interface_type() == CommInterface::SPI {
+                    rslt = set_mem_page(reg_addr, self);
+                    if rslt as libc::c_int == 0 as libc::c_int {
+                        reg_addr = (reg_addr as libc::c_int | 0x80 as libc::c_int) as u8;
+                    }
+                }
+                (*self).intf_rslt = (*self).intf.read_raw(reg_addr, reg_data, len);
+                if (*self).intf_rslt as libc::c_int != 0 as libc::c_int {
                     rslt = -(2 as libc::c_int) as i8;
                 }
+            } else {
+                rslt = -(1 as libc::c_int) as i8;
             }
-        } else {
-            rslt = -(4 as libc::c_int) as i8;
+            check_rslt(rslt)
         }
-    } else {
-        rslt = -(1 as libc::c_int) as i8;
     }
-    return rslt;
-}
-pub unsafe fn bme68x_get_regs<I: Interface>(
-    mut reg_addr: u8,
-    reg_data: *mut u8,
-    len: u32,
-    mut dev: *mut Device<I>,
-) -> i8 {
-    let mut rslt: i8 = 0;
-    rslt = null_ptr_check(dev);
-    if rslt as libc::c_int == 0 as libc::c_int && !reg_data.is_null() {
-        if (*dev).intf.interface_type() == CommInterface::SPI {
-            rslt = set_mem_page(reg_addr, dev);
+    pub fn soft_reset(&mut self) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut reg_addr: u8 = 0xe0 as libc::c_int as u8;
+            let mut soft_rst_cmd: u8 = 0xb6 as libc::c_int as u8;
+            rslt = null_ptr_check(self);
             if rslt as libc::c_int == 0 as libc::c_int {
-                reg_addr = (reg_addr as libc::c_int | 0x80 as libc::c_int) as u8;
-            }
-        }
-        (*dev).intf_rslt = (*dev).intf.read_raw(reg_addr, reg_data, len);
-        if (*dev).intf_rslt as libc::c_int != 0 as libc::c_int {
-            rslt = -(2 as libc::c_int) as i8;
-        }
-    } else {
-        rslt = -(1 as libc::c_int) as i8;
-    }
-    return rslt;
-}
-pub unsafe fn bme68x_soft_reset<I: Interface>(dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut reg_addr: u8 = 0xe0 as libc::c_int as u8;
-    let mut soft_rst_cmd: u8 = 0xb6 as libc::c_int as u8;
-    rslt = null_ptr_check(dev);
-    if rslt as libc::c_int == 0 as libc::c_int {
-        if (*dev).intf.interface_type() == CommInterface::SPI {
-            rslt = get_mem_page(dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = bme68x_set_regs(
-                &mut reg_addr,
-                &mut soft_rst_cmd,
-                1 as libc::c_int as u32,
-                dev,
-            );
-            (*dev).intf.delay(10000 as libc::c_uint);
-            if rslt as libc::c_int == 0 as libc::c_int {
-                if (*dev).intf.interface_type() == CommInterface::SPI {
-                    rslt = get_mem_page(dev);
+                if (*self).intf.interface_type() == CommInterface::SPI {
+                    rslt = get_mem_page(self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    self.set_regs(&mut reg_addr, &mut soft_rst_cmd, 1 as libc::c_int as u32)?;
+                    (*self).intf.delay(10000 as libc::c_uint);
+                    if (*self).intf.interface_type() == CommInterface::SPI {
+                        rslt = get_mem_page(self);
+                    }
                 }
             }
+            check_rslt(rslt)
         }
     }
-    return rslt;
-}
 
-impl<I: Interface> Device<I> {
     pub fn set_conf(&mut self, conf: *mut DeviceConf) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
@@ -312,12 +303,11 @@ impl<I: Interface> Device<I> {
             if conf.is_null() {
                 rslt = -(1 as libc::c_int) as i8;
             } else if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = bme68x_get_regs(
+                self.get_regs(
                     reg_array[0],
                     data_array.as_mut_ptr(),
                     5 as libc::c_int as u32,
-                    self,
-                );
+                )?;
                 (*self).info_msg = 0 as libc::c_int as u8;
                 if rslt as libc::c_int == 0 as libc::c_int {
                     rslt = boundary_check(&mut (*conf).filter, 7 as libc::c_int as u8, self);
@@ -360,12 +350,11 @@ impl<I: Interface> Device<I> {
                 }
             }
             if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = bme68x_set_regs(
+                self.set_regs(
                     reg_array.as_mut_ptr(),
                     data_array.as_mut_ptr(),
                     5 as libc::c_int as u32,
-                    self,
-                );
+                )?;
             }
             if current_op_mode as libc::c_int != 0 as libc::c_int
                 && rslt as libc::c_int == 0 as libc::c_int
@@ -375,37 +364,32 @@ impl<I: Interface> Device<I> {
             return check_rslt(rslt);
         }
     }
-}
-pub unsafe fn bme68x_get_conf<I: Interface>(mut conf: *mut DeviceConf, dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
-    let reg_addr: u8 = 0x71 as libc::c_int as u8;
-    let mut data_array: [u8; 5] = [0; 5];
-    rslt = bme68x_get_regs(
-        reg_addr,
-        data_array.as_mut_ptr(),
-        5 as libc::c_int as u32,
-        dev,
-    );
-    if conf.is_null() {
-        rslt = -(1 as libc::c_int) as i8;
-    } else if rslt as libc::c_int == 0 as libc::c_int {
-        (*conf).os_hum = (data_array[1] as libc::c_int & 0x7 as libc::c_int) as u8;
-        (*conf).filter =
-            ((data_array[4] as libc::c_int & 0x1c as libc::c_int) >> 2 as libc::c_int) as u8;
-        (*conf).os_temp =
-            ((data_array[3] as libc::c_int & 0xe0 as libc::c_int) >> 5 as libc::c_int) as u8;
-        (*conf).os_pres =
-            ((data_array[3] as libc::c_int & 0x1c as libc::c_int) >> 2 as libc::c_int) as u8;
-        if (data_array[0] as libc::c_int & 0x80 as libc::c_int) >> 7 as libc::c_int != 0 {
-            (*conf).odr = 8 as libc::c_int as u8;
-        } else {
-            (*conf).odr =
-                ((data_array[4] as libc::c_int & 0xe0 as libc::c_int) >> 5 as libc::c_int) as u8;
+    pub fn get_conf(&mut self, mut conf: *mut DeviceConf) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let reg_addr: u8 = 0x71 as libc::c_int as u8;
+            let mut data_array: [u8; 5] = [0; 5];
+            self.get_regs(reg_addr, data_array.as_mut_ptr(), 5 as libc::c_int as u32)?;
+            if conf.is_null() {
+                rslt = -(1 as libc::c_int) as i8;
+            } else if rslt as libc::c_int == 0 as libc::c_int {
+                (*conf).os_hum = (data_array[1] as libc::c_int & 0x7 as libc::c_int) as u8;
+                (*conf).filter = ((data_array[4] as libc::c_int & 0x1c as libc::c_int)
+                    >> 2 as libc::c_int) as u8;
+                (*conf).os_temp = ((data_array[3] as libc::c_int & 0xe0 as libc::c_int)
+                    >> 5 as libc::c_int) as u8;
+                (*conf).os_pres = ((data_array[3] as libc::c_int & 0x1c as libc::c_int)
+                    >> 2 as libc::c_int) as u8;
+                if (data_array[0] as libc::c_int & 0x80 as libc::c_int) >> 7 as libc::c_int != 0 {
+                    (*conf).odr = 8 as libc::c_int as u8;
+                } else {
+                    (*conf).odr = ((data_array[4] as libc::c_int & 0xe0 as libc::c_int)
+                        >> 5 as libc::c_int) as u8;
+                }
+            }
+            check_rslt(rslt)
         }
     }
-    return rslt;
-}
-impl<I: Interface> Device<I> {
     pub fn set_op_mode(&mut self, op_mode: u8) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
@@ -413,22 +397,16 @@ impl<I: Interface> Device<I> {
             let mut pow_mode: u8 = 0 as libc::c_int as u8;
             let mut reg_addr: u8 = 0x74 as libc::c_int as u8;
             loop {
-                rslt = bme68x_get_regs(
+                self.get_regs(
                     0x74 as libc::c_int as u8,
                     &mut tmp_pow_mode,
                     1 as libc::c_int as u32,
-                    self,
-                );
+                )?;
                 if rslt as libc::c_int == 0 as libc::c_int {
                     pow_mode = (tmp_pow_mode as libc::c_int & 0x3 as libc::c_int) as u8;
                     if pow_mode as libc::c_int != 0 as libc::c_int {
                         tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)) as u8;
-                        rslt = bme68x_set_regs(
-                            &mut reg_addr,
-                            &mut tmp_pow_mode,
-                            1 as libc::c_int as u32,
-                            self,
-                        );
+                        self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
                         (*self).intf.delay(10000 as libc::c_uint);
                     }
                 }
@@ -443,12 +421,7 @@ impl<I: Interface> Device<I> {
                 tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)
                     | op_mode as libc::c_int & 0x3 as libc::c_int)
                     as u8;
-                rslt = bme68x_set_regs(
-                    &mut reg_addr,
-                    &mut tmp_pow_mode,
-                    1 as libc::c_int as u32,
-                    self,
-                );
+                self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
             }
             check_rslt(rslt)
         }
@@ -458,12 +431,11 @@ impl<I: Interface> Device<I> {
             let mut rslt: i8 = 0;
             let mut mode: u8 = 0;
             if !op_mode.is_null() {
-                rslt = bme68x_get_regs(
+                self.get_regs(
                     0x74 as libc::c_int as u8,
                     &mut mode,
                     1 as libc::c_int as u32,
-                    self,
-                );
+                )?;
                 *op_mode = (mode as libc::c_int & 0x3 as libc::c_int) as u8;
             } else {
                 rslt = -(1 as libc::c_int) as i8;
@@ -655,12 +627,11 @@ impl<I: Interface> Device<I> {
                 self.set_op_mode(0 as libc::c_int as u8)?;
                 rslt = set_conf(conf, op_mode, &mut nb_conv, self);
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    rslt = bme68x_get_regs(
+                    self.get_regs(
                         0x70 as libc::c_int as u8,
                         ctrl_gas_data.as_mut_ptr(),
                         2 as libc::c_int as u32,
-                        self,
-                    );
+                    )?;
                     if rslt as libc::c_int == 0 as libc::c_int {
                         if (*conf).enable as libc::c_int == 0x1 as libc::c_int {
                             hctrl = 0 as libc::c_int as u8;
@@ -683,12 +654,11 @@ impl<I: Interface> Device<I> {
                             & !(0x30 as libc::c_int)
                             | (run_gas as libc::c_int) << 4 as libc::c_int & 0x30 as libc::c_int)
                             as u8;
-                        rslt = bme68x_set_regs(
+                        self.set_regs(
                             ctrl_gas_addr.as_mut_ptr(),
                             ctrl_gas_data.as_mut_ptr(),
                             2 as libc::c_int as u32,
-                            self,
-                        );
+                        )?;
                     }
                 }
             } else {
@@ -697,49 +667,48 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
-}
 
-pub unsafe fn bme68x_get_heatr_conf<I: Interface>(
-    conf: *const HeaterConf,
-    dev: *mut Device<I>,
-) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut data_array: [u8; 10] = [0 as libc::c_int as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    let mut i: u8 = 0;
-    rslt = bme68x_get_regs(
-        0x5a as libc::c_int as u8,
-        data_array.as_mut_ptr(),
-        10 as libc::c_int as u32,
-        dev,
-    );
-    if rslt as libc::c_int == 0 as libc::c_int {
-        if !conf.is_null()
-            && !((*conf).heatr_dur_prof).is_null()
-            && !((*conf).heatr_temp_prof).is_null()
-        {
-            i = 0 as libc::c_int as u8;
-            while (i as libc::c_int) < 10 as libc::c_int {
-                *((*conf).heatr_temp_prof).offset(i as isize) = data_array[i as usize] as u16;
-                i = i.wrapping_add(1);
-            }
-            rslt = bme68x_get_regs(
-                0x64 as libc::c_int as u8,
+    pub fn get_heatr_conf(&mut self, conf: *const HeaterConf) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut data_array: [u8; 10] = [0 as libc::c_int as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let mut i: u8 = 0;
+            self.get_regs(
+                0x5a as libc::c_int as u8,
                 data_array.as_mut_ptr(),
                 10 as libc::c_int as u32,
-                dev,
-            );
+            )?;
             if rslt as libc::c_int == 0 as libc::c_int {
-                i = 0 as libc::c_int as u8;
-                while (i as libc::c_int) < 10 as libc::c_int {
-                    *((*conf).heatr_dur_prof).offset(i as isize) = data_array[i as usize] as u16;
-                    i = i.wrapping_add(1);
+                if !conf.is_null()
+                    && !((*conf).heatr_dur_prof).is_null()
+                    && !((*conf).heatr_temp_prof).is_null()
+                {
+                    i = 0 as libc::c_int as u8;
+                    while (i as libc::c_int) < 10 as libc::c_int {
+                        *((*conf).heatr_temp_prof).offset(i as isize) =
+                            data_array[i as usize] as u16;
+                        i = i.wrapping_add(1);
+                    }
+                    self.get_regs(
+                        0x64 as libc::c_int as u8,
+                        data_array.as_mut_ptr(),
+                        10 as libc::c_int as u32,
+                    )?;
+                    if rslt as libc::c_int == 0 as libc::c_int {
+                        i = 0 as libc::c_int as u8;
+                        while (i as libc::c_int) < 10 as libc::c_int {
+                            *((*conf).heatr_dur_prof).offset(i as isize) =
+                                data_array[i as usize] as u16;
+                            i = i.wrapping_add(1);
+                        }
+                    }
+                } else {
+                    rslt = -(1 as libc::c_int) as i8;
                 }
             }
-        } else {
-            rslt = -(1 as libc::c_int) as i8;
+            check_rslt(rslt)
         }
     }
-    return rslt;
 }
 
 unsafe fn calc_temperature<I: Interface>(temp_adc: u32, mut dev: *mut Device<I>) -> libc::c_float {
@@ -923,12 +892,13 @@ unsafe fn read_field_data<I: Interface>(
     let mut adc_gas_res_high: u16 = 0;
     let mut tries: u8 = 5 as libc::c_int as u8;
     while tries as libc::c_int != 0 && rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_get_regs(
-            (0x1d as libc::c_int + index as libc::c_int * 17 as libc::c_int) as u8,
-            buff.as_mut_ptr(),
-            17 as libc::c_int as u16 as u32,
-            dev,
-        );
+        (*dev)
+            .get_regs(
+                (0x1d as libc::c_int + index as libc::c_int * 17 as libc::c_int) as u8,
+                buff.as_mut_ptr(),
+                17 as libc::c_int as u16 as u32,
+            )
+            .unwrap();
         if data.is_null() {
             rslt = -(1 as libc::c_int) as i8;
             break;
@@ -970,27 +940,26 @@ unsafe fn read_field_data<I: Interface>(
             if (*data).status as libc::c_int & 0x80 as libc::c_int != 0
                 && rslt as libc::c_int == 0 as libc::c_int
             {
-                rslt = bme68x_get_regs(
+                (*dev).get_regs(
                     (0x5a as libc::c_int + (*data).gas_index as libc::c_int) as u8,
                     &mut (*data).res_heat,
                     1 as libc::c_int as u32,
-                    dev,
                 );
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    rslt = bme68x_get_regs(
+                    (*dev).get_regs(
                         (0x50 as libc::c_int + (*data).gas_index as libc::c_int) as u8,
                         &mut (*data).idac,
                         1 as libc::c_int as u32,
-                        dev,
                     );
                 }
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    rslt = bme68x_get_regs(
-                        (0x64 as libc::c_int + (*data).gas_index as libc::c_int) as u8,
-                        &mut (*data).gas_wait,
-                        1 as libc::c_int as u32,
-                        dev,
-                    );
+                    (*dev)
+                        .get_regs(
+                            (0x64 as libc::c_int + (*data).gas_index as libc::c_int) as u8,
+                            &mut (*data).gas_wait,
+                            1 as libc::c_int as u32,
+                        )
+                        .unwrap();
                 }
                 if rslt as libc::c_int == 0 as libc::c_int {
                     (*data).temperature = calc_temperature(adc_temp, dev);
@@ -1120,20 +1089,22 @@ unsafe fn read_all_field_data<I: Interface>(
         rslt = -(1 as libc::c_int) as i8;
     }
     if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_get_regs(
-            0x1d as libc::c_int as u8,
-            buff.as_mut_ptr(),
-            (17 as libc::c_int as u32).wrapping_mul(3 as libc::c_int as libc::c_uint),
-            dev,
-        );
+        (*dev)
+            .get_regs(
+                0x1d as libc::c_int as u8,
+                buff.as_mut_ptr(),
+                (17 as libc::c_int as u32).wrapping_mul(3 as libc::c_int as libc::c_uint),
+            )
+            .unwrap();
     }
     if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_get_regs(
-            0x50 as libc::c_int as u8,
-            set_val.as_mut_ptr(),
-            30 as libc::c_int as u32,
-            dev,
-        );
+        (*dev)
+            .get_regs(
+                0x50 as libc::c_int as u8,
+                set_val.as_mut_ptr(),
+                30 as libc::c_int as u32,
+            )
+            .unwrap();
     }
     i = 0 as libc::c_int as u8;
     while (i as libc::c_int) < 3 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int {
@@ -1393,12 +1364,13 @@ unsafe fn set_conf<I: Interface>(
                 write_len = (*conf).profile_len;
                 shared_dur = calc_heatr_dur_shared((*conf).shared_heatr_dur);
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    rslt = bme68x_set_regs(
-                        &mut heater_dur_shared_addr,
-                        &mut shared_dur,
-                        1 as libc::c_int as u32,
-                        dev,
-                    );
+                    (*dev)
+                        .set_regs(
+                            &mut heater_dur_shared_addr,
+                            &mut shared_dur,
+                            1 as libc::c_int as u32,
+                        )
+                        .unwrap();
                 }
             }
         }
@@ -1407,20 +1379,22 @@ unsafe fn set_conf<I: Interface>(
         }
     }
     if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_set_regs(
-            rh_reg_addr.as_mut_ptr(),
-            rh_reg_data.as_mut_ptr(),
-            write_len as u32,
-            dev,
-        );
+        (*dev)
+            .set_regs(
+                rh_reg_addr.as_mut_ptr(),
+                rh_reg_data.as_mut_ptr(),
+                write_len as u32,
+            )
+            .unwrap();
     }
     if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_set_regs(
-            gw_reg_addr.as_mut_ptr(),
-            gw_reg_data.as_mut_ptr(),
-            write_len as u32,
-            dev,
-        );
+        (*dev)
+            .set_regs(
+                gw_reg_addr.as_mut_ptr(),
+                gw_reg_data.as_mut_ptr(),
+                write_len as u32,
+            )
+            .unwrap();
     }
     return rslt;
 }
@@ -1516,29 +1490,32 @@ unsafe fn analyze_sensor_data(data: *const SensorData, n_meas: u8) -> i8 {
 unsafe fn get_calib_data<I: Interface>(mut dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let mut coeff_array: [u8; 42] = [0; 42];
-    rslt = bme68x_get_regs(
-        0x8a as libc::c_int as u8,
-        coeff_array.as_mut_ptr(),
-        23 as libc::c_int as u32,
-        dev,
-    );
+    (*dev)
+        .get_regs(
+            0x8a as libc::c_int as u8,
+            coeff_array.as_mut_ptr(),
+            23 as libc::c_int as u32,
+        )
+        .unwrap();
     if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_get_regs(
-            0xe1 as libc::c_int as u8,
-            &mut *coeff_array.as_mut_ptr().offset(23 as libc::c_int as isize),
-            14 as libc::c_int as u32,
-            dev,
-        );
+        (*dev)
+            .get_regs(
+                0xe1 as libc::c_int as u8,
+                &mut *coeff_array.as_mut_ptr().offset(23 as libc::c_int as isize),
+                14 as libc::c_int as u32,
+            )
+            .unwrap();
     }
     if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_get_regs(
-            0 as libc::c_int as u8,
-            &mut *coeff_array
-                .as_mut_ptr()
-                .offset((23 as libc::c_int + 14 as libc::c_int) as isize),
-            5 as libc::c_int as u32,
-            dev,
-        );
+        (*dev)
+            .get_regs(
+                0 as libc::c_int as u8,
+                &mut *coeff_array
+                    .as_mut_ptr()
+                    .offset((23 as libc::c_int + 14 as libc::c_int) as isize),
+                5 as libc::c_int as u32,
+            )
+            .unwrap();
     }
     if rslt as libc::c_int == 0 as libc::c_int {
         (*dev).calib.par_t1 = ((coeff_array[32] as u16 as libc::c_int) << 8 as libc::c_int
@@ -1590,12 +1567,13 @@ unsafe fn get_calib_data<I: Interface>(mut dev: *mut Device<I>) -> i8 {
 unsafe fn read_variant_id<I: Interface>(mut dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
     let mut reg_data: u8 = 0 as libc::c_int as u8;
-    rslt = bme68x_get_regs(
-        0xf0 as libc::c_int as u8,
-        &mut reg_data,
-        1 as libc::c_int as u32,
-        dev,
-    );
+    (*dev)
+        .get_regs(
+            0xf0 as libc::c_int as u8,
+            &mut reg_data,
+            1 as libc::c_int as u32,
+        )
+        .unwrap();
     if rslt as libc::c_int == 0 as libc::c_int {
         (*dev).variant_id = reg_data as u32;
     }
