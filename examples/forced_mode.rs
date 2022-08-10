@@ -58,8 +58,7 @@ fn main() -> Result<(), Error> {
     conf.os_hum = 5;
     conf.os_pres = 1;
     conf.os_temp = 2;
-    let rslt = unsafe { bme68x_set_conf(&mut conf, &mut bme) };
-    check_rslt(rslt)?;
+    bme.set_conf(&mut conf)?;
 
     // configure heater
     let mut heatr_conf: HeaterConf = HeaterConf::default();

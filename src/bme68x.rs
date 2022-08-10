@@ -170,7 +170,6 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
-
 }
 pub unsafe fn bme68x_set_regs<I: Interface>(
     reg_addr: *const u8,
@@ -292,91 +291,104 @@ pub unsafe fn bme68x_soft_reset<I: Interface>(dev: *mut Device<I>) -> i8 {
     }
     return rslt;
 }
-pub unsafe fn bme68x_set_conf<I: Interface>(conf: *mut DeviceConf, mut dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
-    let mut odr20: u8 = 0 as libc::c_int as u8;
-    let mut odr3: u8 = 1 as libc::c_int as u8;
-    let mut current_op_mode: u8 = 0;
-    let mut reg_array: [u8; 5] = [
-        0x71 as libc::c_int as u8,
-        0x72 as libc::c_int as u8,
-        0x73 as libc::c_int as u8,
-        0x74 as libc::c_int as u8,
-        0x75 as libc::c_int as u8,
-    ];
-    let mut data_array: [u8; 5] = [0 as libc::c_int as u8, 0, 0, 0, 0];
-    rslt = bme68x_get_op_mode(&mut current_op_mode, dev);
-    if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_set_op_mode(0 as libc::c_int as u8, dev);
-    }
-    if conf.is_null() {
-        rslt = -(1 as libc::c_int) as i8;
-    } else if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_get_regs(
-            reg_array[0 as libc::c_int as usize],
-            data_array.as_mut_ptr(),
-            5 as libc::c_int as u32,
-            dev,
-        );
-        (*dev).info_msg = 0 as libc::c_int as u8;
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = boundary_check(&mut (*conf).filter, 7 as libc::c_int as u8, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = boundary_check(&mut (*conf).os_temp, 5 as libc::c_int as u8, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = boundary_check(&mut (*conf).os_pres, 5 as libc::c_int as u8, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = boundary_check(&mut (*conf).os_hum, 5 as libc::c_int as u8, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            rslt = boundary_check(&mut (*conf).odr, 8 as libc::c_int as u8, dev);
-        }
-        if rslt as libc::c_int == 0 as libc::c_int {
-            data_array[4 as libc::c_int as usize] =
-                (data_array[4 as libc::c_int as usize] as libc::c_int & !(0x1c as libc::c_int)
-                    | ((*conf).filter as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
-                    as u8;
-            data_array[3 as libc::c_int as usize] =
-                (data_array[3 as libc::c_int as usize] as libc::c_int & !(0xe0 as libc::c_int)
-                    | ((*conf).os_temp as libc::c_int) << 5 as libc::c_int & 0xe0 as libc::c_int)
-                    as u8;
-            data_array[3 as libc::c_int as usize] =
-                (data_array[3 as libc::c_int as usize] as libc::c_int & !(0x1c as libc::c_int)
-                    | ((*conf).os_pres as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
-                    as u8;
-            data_array[1 as libc::c_int as usize] =
-                (data_array[1 as libc::c_int as usize] as libc::c_int & !(0x7 as libc::c_int)
-                    | (*conf).os_hum as libc::c_int & 0x7 as libc::c_int) as u8;
-            if (*conf).odr as libc::c_int != 8 as libc::c_int {
-                odr20 = (*conf).odr;
-                odr3 = 0 as libc::c_int as u8;
+
+impl<I: Interface> Device<I> {
+    pub fn set_conf(&mut self, conf: *mut DeviceConf) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            let mut odr20: u8 = 0 as libc::c_int as u8;
+            let mut odr3: u8 = 1 as libc::c_int as u8;
+            let mut current_op_mode: u8 = 0;
+            let mut reg_array: [u8; 5] = [
+                0x71 as libc::c_int as u8,
+                0x72 as libc::c_int as u8,
+                0x73 as libc::c_int as u8,
+                0x74 as libc::c_int as u8,
+                0x75 as libc::c_int as u8,
+            ];
+            let mut data_array: [u8; 5] = [0 as libc::c_int as u8, 0, 0, 0, 0];
+            rslt = bme68x_get_op_mode(&mut current_op_mode, self);
+            if rslt as libc::c_int == 0 as libc::c_int {
+                rslt = bme68x_set_op_mode(0 as libc::c_int as u8, self);
             }
-            data_array[4 as libc::c_int as usize] =
-                (data_array[4 as libc::c_int as usize] as libc::c_int & !(0xe0 as libc::c_int)
-                    | (odr20 as libc::c_int) << 5 as libc::c_int & 0xe0 as libc::c_int)
-                    as u8;
-            data_array[0 as libc::c_int as usize] =
-                (data_array[0 as libc::c_int as usize] as libc::c_int & !(0x80 as libc::c_int)
-                    | (odr3 as libc::c_int) << 7 as libc::c_int & 0x80 as libc::c_int)
-                    as u8;
+            if conf.is_null() {
+                rslt = -(1 as libc::c_int) as i8;
+            } else if rslt as libc::c_int == 0 as libc::c_int {
+                rslt = bme68x_get_regs(
+                    reg_array[0 as libc::c_int as usize],
+                    data_array.as_mut_ptr(),
+                    5 as libc::c_int as u32,
+                    self,
+                );
+                (*self).info_msg = 0 as libc::c_int as u8;
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = boundary_check(&mut (*conf).filter, 7 as libc::c_int as u8, self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = boundary_check(&mut (*conf).os_temp, 5 as libc::c_int as u8, self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = boundary_check(&mut (*conf).os_pres, 5 as libc::c_int as u8, self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = boundary_check(&mut (*conf).os_hum, 5 as libc::c_int as u8, self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    rslt = boundary_check(&mut (*conf).odr, 8 as libc::c_int as u8, self);
+                }
+                if rslt as libc::c_int == 0 as libc::c_int {
+                    data_array[4 as libc::c_int as usize] = (data_array[4 as libc::c_int as usize]
+                        as libc::c_int
+                        & !(0x1c as libc::c_int)
+                        | ((*conf).filter as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
+                        as u8;
+                    data_array[3 as libc::c_int as usize] =
+                        (data_array[3 as libc::c_int as usize] as libc::c_int
+                            & !(0xe0 as libc::c_int)
+                            | ((*conf).os_temp as libc::c_int) << 5 as libc::c_int
+                                & 0xe0 as libc::c_int) as u8;
+                    data_array[3 as libc::c_int as usize] =
+                        (data_array[3 as libc::c_int as usize] as libc::c_int
+                            & !(0x1c as libc::c_int)
+                            | ((*conf).os_pres as libc::c_int) << 2 as libc::c_int
+                                & 0x1c as libc::c_int) as u8;
+                    data_array[1 as libc::c_int as usize] = (data_array[1 as libc::c_int as usize]
+                        as libc::c_int
+                        & !(0x7 as libc::c_int)
+                        | (*conf).os_hum as libc::c_int & 0x7 as libc::c_int)
+                        as u8;
+                    if (*conf).odr as libc::c_int != 8 as libc::c_int {
+                        odr20 = (*conf).odr;
+                        odr3 = 0 as libc::c_int as u8;
+                    }
+                    data_array[4 as libc::c_int as usize] = (data_array[4 as libc::c_int as usize]
+                        as libc::c_int
+                        & !(0xe0 as libc::c_int)
+                        | (odr20 as libc::c_int) << 5 as libc::c_int & 0xe0 as libc::c_int)
+                        as u8;
+                    data_array[0 as libc::c_int as usize] = (data_array[0 as libc::c_int as usize]
+                        as libc::c_int
+                        & !(0x80 as libc::c_int)
+                        | (odr3 as libc::c_int) << 7 as libc::c_int & 0x80 as libc::c_int)
+                        as u8;
+                }
+            }
+            if rslt as libc::c_int == 0 as libc::c_int {
+                rslt = bme68x_set_regs(
+                    reg_array.as_mut_ptr(),
+                    data_array.as_mut_ptr(),
+                    5 as libc::c_int as u32,
+                    self,
+                );
+            }
+            if current_op_mode as libc::c_int != 0 as libc::c_int
+                && rslt as libc::c_int == 0 as libc::c_int
+            {
+                rslt = bme68x_set_op_mode(current_op_mode, self);
+            }
+            return check_rslt(rslt);
         }
     }
-    if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_set_regs(
-            reg_array.as_mut_ptr(),
-            data_array.as_mut_ptr(),
-            5 as libc::c_int as u32,
-            dev,
-        );
-    }
-    if current_op_mode as libc::c_int != 0 as libc::c_int && rslt as libc::c_int == 0 as libc::c_int
-    {
-        rslt = bme68x_set_op_mode(current_op_mode, dev);
-    }
-    return rslt;
 }
 pub unsafe fn bme68x_get_conf<I: Interface>(mut conf: *mut DeviceConf, dev: *mut Device<I>) -> i8 {
     let mut rslt: i8 = 0;
