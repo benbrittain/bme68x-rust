@@ -1,6 +1,6 @@
 use libc;
 
-use crate::interface::Interface;
+use crate::interface::{check_rslt, Error, Interface};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CommInterface {
@@ -144,30 +144,32 @@ impl<I: Interface> Device<I> {
             info_msg: 0,
         }
     }
-}
 
-pub unsafe fn bme68x_init<I: Interface>(mut dev: *mut Device<I>) -> i8 {
-    let mut rslt: i8 = 0;
-    rslt = bme68x_soft_reset(dev);
-    if rslt as libc::c_int == 0 as libc::c_int {
-        rslt = bme68x_get_regs(
-            0xd0 as libc::c_int as u8,
-            &mut (*dev).chip_id,
-            1 as libc::c_int as u32,
-            dev,
-        );
-        if rslt as libc::c_int == 0 as libc::c_int {
-            if (*dev).chip_id as libc::c_int == 0x61 as libc::c_int {
-                rslt = read_variant_id(dev);
+    pub fn init(&mut self) -> Result<(), Error> {
+        unsafe {
+            let mut rslt: i8 = 0;
+            rslt = bme68x_soft_reset(self);
+            if rslt as libc::c_int == 0 as libc::c_int {
+                rslt = bme68x_get_regs(
+                    0xd0 as libc::c_int as u8,
+                    &mut (*self).chip_id,
+                    1 as libc::c_int as u32,
+                    self,
+                );
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    rslt = get_calib_data(dev);
+                    if (*self).chip_id as libc::c_int == 0x61 as libc::c_int {
+                        rslt = read_variant_id(self);
+                        if rslt as libc::c_int == 0 as libc::c_int {
+                            rslt = get_calib_data(self);
+                        }
+                    } else {
+                        rslt = -(3 as libc::c_int) as i8;
+                    }
                 }
-            } else {
-                rslt = -(3 as libc::c_int) as i8;
             }
+            check_rslt(rslt)
         }
     }
-    return rslt;
 }
 pub unsafe fn bme68x_set_regs<I: Interface>(
     mut reg_addr: *const u8,

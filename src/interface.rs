@@ -11,7 +11,7 @@ pub enum Error {
     Unknown,
 }
 
-pub fn check_rslt(api_name: String, rslt: i8) -> Result<(), Error> {
+pub fn check_rslt(rslt: i8) -> Result<(), Error> {
     match rslt {
         0 => Ok(()),
         -1 => Err(Error::NullPointer),

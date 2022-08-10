@@ -54,8 +54,7 @@ fn main() -> Result<(), Error> {
     let mut bme = Device::new(SpiDriver {});
 
     // Init bme68x
-    let rslt = unsafe { bme68x_init(&mut bme) };
-    check_rslt(String::from("bme68x_init"), rslt)?;
+    bme.init()?;
 
     // configure device
     let mut conf: DeviceConf = DeviceConf::default();
@@ -65,7 +64,7 @@ fn main() -> Result<(), Error> {
     conf.os_pres = 1;
     conf.os_temp = 2;
     let rslt = unsafe { bme68x_set_conf(&mut conf, &mut bme) };
-    check_rslt(String::from("bme68x_set_conf"), rslt)?;
+    check_rslt(rslt)?;
 
     // configure heater
     let mut heatr_conf: HeaterConf = HeaterConf::default();
@@ -73,14 +72,14 @@ fn main() -> Result<(), Error> {
     heatr_conf.heatr_temp = 300;
     heatr_conf.heatr_dur = 100;
     let rslt = unsafe { bme68x_set_heatr_conf(1 as libc::c_int as u8, &mut heatr_conf, &mut bme) };
-    check_rslt(String::from("bme68x_set_heatr_conf"), rslt)?;
+    check_rslt(rslt)?;
 
     let time_ms = std::time::Instant::now();
     println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
     for sample_count in 0..300 {
         // Set operating mode
         let rslt = unsafe { bme68x_set_op_mode(1 as libc::c_int as u8, &mut bme) };
-        check_rslt(String::from("bme68x_set_op_mode"), rslt)?;
+        check_rslt(rslt)?;
 
         // Delay the remaining duration that can be used for heating
         let del_period = unsafe {
@@ -107,7 +106,7 @@ fn main() -> Result<(), Error> {
             gas_resistance: 0.,
         };
         let rslt = unsafe { bme68x_get_data(1, &mut data, &mut n_fields, &mut bme) };
-        check_rslt(String::from("bme68x_get_data"), rslt)?;
+        check_rslt(rslt)?;
 
         if n_fields != 0 {
             println!(
