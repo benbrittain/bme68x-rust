@@ -1,4 +1,4 @@
-use libc;
+use core::ffi;
 
 use crate::interface::{check_rslt, Error, Interface};
 use crate::internal::*;
@@ -77,10 +77,10 @@ pub struct SensorData {
     pub res_heat: u8,
     pub idac: u8,
     pub gas_wait: u8,
-    pub temperature: libc::c_float,
-    pub pressure: libc::c_float,
-    pub humidity: libc::c_float,
-    pub gas_resistance: libc::c_float,
+    pub temperature: ffi::c_float,
+    pub pressure: ffi::c_float,
+    pub humidity: ffi::c_float,
+    pub gas_resistance: ffi::c_float,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -109,7 +109,7 @@ pub struct CalibrationData {
     pub par_p8: i16,
     pub par_p9: i16,
     pub par_p10: u8,
-    pub t_fine: libc::c_float,
+    pub t_fine: ffi::c_float,
     pub res_heat_range: u8,
     pub res_heat_val: i8,
     pub range_sw_err: i8,
@@ -274,18 +274,18 @@ impl<I: Interface> Device<I> {
         device.soft_reset()?;
         let mut chip_id = 0;
         device.get_regs(
-            0xd0 as libc::c_int as u8,
+            0xd0 as ffi::c_int as u8,
             &mut chip_id,
-            1 as libc::c_int as u32,
+            1 as ffi::c_int as u32,
         )?;
         let mut rslt: i8 = 0;
         if chip_id == 0x61 {
             rslt = read_variant_id(&mut device);
-            if rslt as libc::c_int == 0 as libc::c_int {
+            if rslt as ffi::c_int == 0 as ffi::c_int {
                 rslt = get_calib_data(&mut device);
             }
         } else {
-            rslt = -(3 as libc::c_int) as i8;
+            rslt = -(3 as ffi::c_int) as i8;
         }
         check_rslt(rslt)?;
         Ok(device)
@@ -303,43 +303,43 @@ impl<I: Interface> Device<I> {
             let mut tmp_buff: [u8; 20] = [0; 20];
             let mut index: u16 = 0;
             rslt = null_ptr_check(self);
-            if rslt as libc::c_int == 0 as libc::c_int && !reg_addr.is_null() && !reg_data.is_null()
-            {
-                if len > 0 as libc::c_int as libc::c_uint
-                    && len <= (20 as libc::c_int / 2 as libc::c_int) as libc::c_uint
+            if rslt as ffi::c_int == 0 as ffi::c_int && !reg_addr.is_null() && !reg_data.is_null() {
+                if len > 0 as ffi::c_int as ffi::c_uint
+                    && len <= (20 as ffi::c_int / 2 as ffi::c_int) as ffi::c_uint
                 {
-                    index = 0 as libc::c_int as u16;
-                    while (index as libc::c_uint) < len {
+                    index = 0 as ffi::c_int as u16;
+                    while (index as ffi::c_uint) < len {
                         if (*self).interface.interface_type() == CommInterface::SPI {
                             rslt = set_mem_page(*reg_addr.offset(index as isize), self);
-                            tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
-                                (*reg_addr.offset(index as isize) as libc::c_int
-                                    & 0x7f as libc::c_int) as u8;
+                            tmp_buff[(2 as ffi::c_int * index as ffi::c_int) as usize] =
+                                (*reg_addr.offset(index as isize) as ffi::c_int
+                                    & 0x7f as ffi::c_int) as u8;
                         } else {
-                            tmp_buff[(2 as libc::c_int * index as libc::c_int) as usize] =
+                            tmp_buff[(2 as ffi::c_int * index as ffi::c_int) as usize] =
                                 *reg_addr.offset(index as isize);
                         }
-                        tmp_buff[(2 as libc::c_int * index as libc::c_int + 1 as libc::c_int)
-                            as usize] = *reg_data.offset(index as isize);
+                        tmp_buff
+                            [(2 as ffi::c_int * index as ffi::c_int + 1 as ffi::c_int) as usize] =
+                            *reg_data.offset(index as isize);
                         index = index.wrapping_add(1);
                     }
-                    if rslt as libc::c_int == 0 as libc::c_int {
+                    if rslt as ffi::c_int == 0 as ffi::c_int {
                         (*self).interface_result = (*self).interface.write_raw(
                             tmp_buff[0],
-                            &mut *tmp_buff.as_mut_ptr().offset(1 as libc::c_int as isize),
-                            (2 as libc::c_int as libc::c_uint)
+                            &mut *tmp_buff.as_mut_ptr().offset(1 as ffi::c_int as isize),
+                            (2 as ffi::c_int as ffi::c_uint)
                                 .wrapping_mul(len)
-                                .wrapping_sub(1 as libc::c_int as libc::c_uint),
+                                .wrapping_sub(1 as ffi::c_int as ffi::c_uint),
                         );
-                        if (*self).interface_result as libc::c_int != 0 as libc::c_int {
-                            rslt = -(2 as libc::c_int) as i8;
+                        if (*self).interface_result as ffi::c_int != 0 as ffi::c_int {
+                            rslt = -(2 as ffi::c_int) as i8;
                         }
                     }
                 } else {
-                    rslt = -(4 as libc::c_int) as i8;
+                    rslt = -(4 as ffi::c_int) as i8;
                 }
             } else {
-                rslt = -(1 as libc::c_int) as i8;
+                rslt = -(1 as ffi::c_int) as i8;
             }
             check_rslt(rslt)
         }
@@ -355,19 +355,19 @@ impl<I: Interface> Device<I> {
         unsafe {
             let mut rslt: i8 = 0;
             rslt = null_ptr_check(self);
-            if rslt as libc::c_int == 0 as libc::c_int && !reg_data.is_null() {
+            if rslt as ffi::c_int == 0 as ffi::c_int && !reg_data.is_null() {
                 if (*self).interface.interface_type() == CommInterface::SPI {
                     rslt = set_mem_page(reg_addr, self);
-                    if rslt as libc::c_int == 0 as libc::c_int {
-                        reg_addr = (reg_addr as libc::c_int | 0x80 as libc::c_int) as u8;
+                    if rslt as ffi::c_int == 0 as ffi::c_int {
+                        reg_addr = (reg_addr as ffi::c_int | 0x80 as ffi::c_int) as u8;
                     }
                 }
                 (*self).interface_result = (*self).interface.read_raw(reg_addr, reg_data, len);
-                if (*self).interface_result as libc::c_int != 0 as libc::c_int {
-                    rslt = -(2 as libc::c_int) as i8;
+                if (*self).interface_result as ffi::c_int != 0 as ffi::c_int {
+                    rslt = -(2 as ffi::c_int) as i8;
                 }
             } else {
-                rslt = -(1 as libc::c_int) as i8;
+                rslt = -(1 as ffi::c_int) as i8;
             }
             check_rslt(rslt)
         }
@@ -377,16 +377,16 @@ impl<I: Interface> Device<I> {
     pub fn soft_reset(&mut self) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
-            let mut reg_addr: u8 = 0xe0 as libc::c_int as u8;
-            let mut soft_rst_cmd: u8 = 0xb6 as libc::c_int as u8;
+            let mut reg_addr: u8 = 0xe0 as ffi::c_int as u8;
+            let mut soft_rst_cmd: u8 = 0xb6 as ffi::c_int as u8;
             rslt = null_ptr_check(self);
-            if rslt as libc::c_int == 0 as libc::c_int {
+            if rslt as ffi::c_int == 0 as ffi::c_int {
                 if (*self).interface.interface_type() == CommInterface::SPI {
                     rslt = get_mem_page(self);
                 }
-                if rslt as libc::c_int == 0 as libc::c_int {
-                    self.set_regs(&mut reg_addr, &mut soft_rst_cmd, 1 as libc::c_int as u32)?;
-                    (*self).interface.delay(10000 as libc::c_uint);
+                if rslt as ffi::c_int == 0 as ffi::c_int {
+                    self.set_regs(&mut reg_addr, &mut soft_rst_cmd, 1 as ffi::c_int as u32)?;
+                    (*self).interface.delay(10000 as ffi::c_uint);
                     if (*self).interface.interface_type() == CommInterface::SPI {
                         rslt = get_mem_page(self);
                     }
@@ -425,27 +425,27 @@ impl<I: Interface> Device<I> {
                 rslt = boundary_check(&mut self.config.odr, 8 as u8, self);
             }
             if rslt == 0 {
-                data_array[4] = (data_array[4] as libc::c_int & !(0x1c as libc::c_int)
-                    | (self.config.filter as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
+                data_array[4] = (data_array[4] as ffi::c_int & !(0x1c as ffi::c_int)
+                    | (self.config.filter as ffi::c_int) << 2 as ffi::c_int & 0x1c as ffi::c_int)
                     as u8;
-                data_array[3] = (data_array[3] as libc::c_int & !(0xe0 as libc::c_int)
-                    | (self.config.os_temp as libc::c_int) << 5 as libc::c_int
-                        & 0xe0 as libc::c_int) as u8;
-                data_array[3] = (data_array[3] as libc::c_int & !(0x1c as libc::c_int)
-                    | (self.config.os_pres as libc::c_int) << 2 as libc::c_int
-                        & 0x1c as libc::c_int) as u8;
-                data_array[1] = (data_array[1] as libc::c_int & !(0x7 as libc::c_int)
-                    | self.config.os_hum as libc::c_int & 0x7 as libc::c_int)
+                data_array[3] = (data_array[3] as ffi::c_int & !(0xe0 as ffi::c_int)
+                    | (self.config.os_temp as ffi::c_int) << 5 as ffi::c_int & 0xe0 as ffi::c_int)
                     as u8;
-                if self.config.odr as libc::c_int != 8 as libc::c_int {
+                data_array[3] = (data_array[3] as ffi::c_int & !(0x1c as ffi::c_int)
+                    | (self.config.os_pres as ffi::c_int) << 2 as ffi::c_int & 0x1c as ffi::c_int)
+                    as u8;
+                data_array[1] = (data_array[1] as ffi::c_int & !(0x7 as ffi::c_int)
+                    | self.config.os_hum as ffi::c_int & 0x7 as ffi::c_int)
+                    as u8;
+                if self.config.odr as ffi::c_int != 8 as ffi::c_int {
                     odr20 = self.config.odr;
-                    odr3 = 0 as libc::c_int as u8;
+                    odr3 = 0 as ffi::c_int as u8;
                 }
-                data_array[4] = (data_array[4] as libc::c_int & !(0xe0 as libc::c_int)
-                    | (odr20 as libc::c_int) << 5 as libc::c_int & 0xe0 as libc::c_int)
+                data_array[4] = (data_array[4] as ffi::c_int & !(0xe0 as ffi::c_int)
+                    | (odr20 as ffi::c_int) << 5 as ffi::c_int & 0xe0 as ffi::c_int)
                     as u8;
-                data_array[0] = (data_array[0] as libc::c_int & !(0x80 as libc::c_int)
-                    | (odr3 as libc::c_int) << 7 as libc::c_int & 0x80 as libc::c_int)
+                data_array[0] = (data_array[0] as ffi::c_int & !(0x80 as ffi::c_int)
+                    | (odr3 as ffi::c_int) << 7 as ffi::c_int & 0x80 as ffi::c_int)
                     as u8;
             }
             if rslt == 0 {
@@ -460,21 +460,21 @@ impl<I: Interface> Device<I> {
 
     /// Used to get the oversampling, filter and odr configurations.
     pub fn get_conf(&mut self, mut conf: &mut DeviceConfig) -> Result<(), Error> {
-        let reg_addr: u8 = 0x71 as libc::c_int as u8;
+        let reg_addr: u8 = 0x71 as ffi::c_int as u8;
         let mut data_array: [u8; 5] = [0; 5];
-        self.get_regs(reg_addr, data_array.as_mut_ptr(), 5 as libc::c_int as u32)?;
-        (*conf).os_hum = (data_array[1] as libc::c_int & 0x7 as libc::c_int) as u8;
+        self.get_regs(reg_addr, data_array.as_mut_ptr(), 5 as ffi::c_int as u32)?;
+        (*conf).os_hum = (data_array[1] as ffi::c_int & 0x7 as ffi::c_int) as u8;
         (*conf).filter =
-            ((data_array[4] as libc::c_int & 0x1c as libc::c_int) >> 2 as libc::c_int) as u8;
+            ((data_array[4] as ffi::c_int & 0x1c as ffi::c_int) >> 2 as ffi::c_int) as u8;
         (*conf).os_temp =
-            ((data_array[3] as libc::c_int & 0xe0 as libc::c_int) >> 5 as libc::c_int) as u8;
+            ((data_array[3] as ffi::c_int & 0xe0 as ffi::c_int) >> 5 as ffi::c_int) as u8;
         (*conf).os_pres =
-            ((data_array[3] as libc::c_int & 0x1c as libc::c_int) >> 2 as libc::c_int) as u8;
-        if (data_array[0] as libc::c_int & 0x80 as libc::c_int) >> 7 as libc::c_int != 0 {
-            (*conf).odr = 8 as libc::c_int as u8;
+            ((data_array[3] as ffi::c_int & 0x1c as ffi::c_int) >> 2 as ffi::c_int) as u8;
+        if (data_array[0] as ffi::c_int & 0x80 as ffi::c_int) >> 7 as ffi::c_int != 0 {
+            (*conf).odr = 8 as ffi::c_int as u8;
         } else {
             (*conf).odr =
-                ((data_array[4] as libc::c_int & 0xe0 as libc::c_int) >> 5 as libc::c_int) as u8;
+                ((data_array[4] as ffi::c_int & 0xe0 as ffi::c_int) >> 5 as ffi::c_int) as u8;
         }
         Ok(())
     }
@@ -483,27 +483,27 @@ impl<I: Interface> Device<I> {
     pub fn set_op_mode(&mut self, op_mode: OperationMode) -> Result<(), Error> {
         let op_mode = op_mode as u8;
         let mut tmp_pow_mode: u8 = 0;
-        let mut reg_addr: u8 = 0x74 as libc::c_int as u8;
+        let mut reg_addr: u8 = 0x74 as ffi::c_int as u8;
         loop {
             self.get_regs(
-                0x74 as libc::c_int as u8,
+                0x74 as ffi::c_int as u8,
                 &mut tmp_pow_mode,
-                1 as libc::c_int as u32,
+                1 as ffi::c_int as u32,
             )?;
-            let pow_mode = (tmp_pow_mode as libc::c_int & 0x3 as libc::c_int) as u8;
-            if pow_mode as libc::c_int != 0 as libc::c_int {
-                tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)) as u8;
-                self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
-                (*self).interface.delay(10000 as libc::c_uint);
+            let pow_mode = (tmp_pow_mode as ffi::c_int & 0x3 as ffi::c_int) as u8;
+            if pow_mode as ffi::c_int != 0 as ffi::c_int {
+                tmp_pow_mode = (tmp_pow_mode as ffi::c_int & !(0x3 as ffi::c_int)) as u8;
+                self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as ffi::c_int as u32)?;
+                (*self).interface.delay(10000 as ffi::c_uint);
             }
-            if !(pow_mode as libc::c_int != 0 as libc::c_int) {
+            if !(pow_mode as ffi::c_int != 0 as ffi::c_int) {
                 break;
             }
         }
-        if op_mode as libc::c_int != 0 as libc::c_int {
-            tmp_pow_mode = (tmp_pow_mode as libc::c_int & !(0x3 as libc::c_int)
-                | op_mode as libc::c_int & 0x3 as libc::c_int) as u8;
-            self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as libc::c_int as u32)?;
+        if op_mode as ffi::c_int != 0 as ffi::c_int {
+            tmp_pow_mode = (tmp_pow_mode as ffi::c_int & !(0x3 as ffi::c_int)
+                | op_mode as ffi::c_int & 0x3 as ffi::c_int) as u8;
+            self.set_regs(&mut reg_addr, &mut tmp_pow_mode, 1 as ffi::c_int as u32)?;
         }
         Ok(())
     }
@@ -511,12 +511,8 @@ impl<I: Interface> Device<I> {
     /// Used to get the operation mode of the sensor.
     pub fn get_op_mode(&mut self) -> Result<OperationMode, Error> {
         let mut mode: u8 = 0;
-        self.get_regs(
-            0x74 as libc::c_int as u8,
-            &mut mode,
-            1 as libc::c_int as u32,
-        )?;
-        let op_mode = (mode as libc::c_int & 0x3 as libc::c_int) as u8;
+        self.get_regs(0x74 as ffi::c_int as u8, &mut mode, 1 as ffi::c_int as u32)?;
+        let op_mode = (mode as ffi::c_int & 0x3 as ffi::c_int) as u8;
         Ok(match op_mode {
             0 => OperationMode::Sleep,
             1 => OperationMode::Forced,
@@ -529,40 +525,40 @@ impl<I: Interface> Device<I> {
     pub fn get_measure_duration(&mut self, op_mode: OperationMode) -> u32 {
         unsafe {
             let mut rslt: i8 = 0;
-            let mut meas_dur: u32 = 0 as libc::c_int as u32;
+            let mut meas_dur: u32 = 0 as ffi::c_int as u32;
             let mut meas_cycles: u32 = 0;
             let os_to_meas_cycles: [u8; 6] = [
-                0 as libc::c_int as u8,
-                1 as libc::c_int as u8,
-                2 as libc::c_int as u8,
-                4 as libc::c_int as u8,
-                8 as libc::c_int as u8,
-                16 as libc::c_int as u8,
+                0 as ffi::c_int as u8,
+                1 as ffi::c_int as u8,
+                2 as ffi::c_int as u8,
+                4 as ffi::c_int as u8,
+                8 as ffi::c_int as u8,
+                16 as ffi::c_int as u8,
             ];
-            rslt = boundary_check(&mut self.config.os_temp, 5 as libc::c_int as u8, self);
-            if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut self.config.os_pres, 5 as libc::c_int as u8, self);
+            rslt = boundary_check(&mut self.config.os_temp, 5 as ffi::c_int as u8, self);
+            if rslt as ffi::c_int == 0 as ffi::c_int {
+                rslt = boundary_check(&mut self.config.os_pres, 5 as ffi::c_int as u8, self);
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut self.config.os_hum, 5 as libc::c_int as u8, self);
+            if rslt as ffi::c_int == 0 as ffi::c_int {
+                rslt = boundary_check(&mut self.config.os_hum, 5 as ffi::c_int as u8, self);
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
+            if rslt as ffi::c_int == 0 as ffi::c_int {
                 meas_cycles = os_to_meas_cycles[self.config.os_temp as usize] as u32;
-                meas_cycles = (meas_cycles as libc::c_uint)
-                    .wrapping_add(os_to_meas_cycles[self.config.os_pres as usize] as libc::c_uint)
+                meas_cycles = (meas_cycles as ffi::c_uint)
+                    .wrapping_add(os_to_meas_cycles[self.config.os_pres as usize] as ffi::c_uint)
                     as u32 as u32;
-                meas_cycles = (meas_cycles as libc::c_uint)
-                    .wrapping_add(os_to_meas_cycles[self.config.os_hum as usize] as libc::c_uint)
+                meas_cycles = (meas_cycles as ffi::c_uint)
+                    .wrapping_add(os_to_meas_cycles[self.config.os_hum as usize] as ffi::c_uint)
                     as u32 as u32;
-                meas_dur = meas_cycles.wrapping_mul(1963 as libc::c_uint);
-                meas_dur = (meas_dur as libc::c_uint).wrapping_add(
-                    (477 as libc::c_int as libc::c_uint).wrapping_mul(4 as libc::c_uint),
-                ) as u32 as u32;
-                meas_dur = (meas_dur as libc::c_uint).wrapping_add(
-                    (477 as libc::c_int as libc::c_uint).wrapping_mul(5 as libc::c_uint),
-                ) as u32 as u32;
+                meas_dur = meas_cycles.wrapping_mul(1963 as ffi::c_uint);
+                meas_dur = (meas_dur as ffi::c_uint)
+                    .wrapping_add((477 as ffi::c_int as ffi::c_uint).wrapping_mul(4 as ffi::c_uint))
+                    as u32 as u32;
+                meas_dur = (meas_dur as ffi::c_uint)
+                    .wrapping_add((477 as ffi::c_int as ffi::c_uint).wrapping_mul(5 as ffi::c_uint))
+                    as u32 as u32;
                 if op_mode != OperationMode::Parallel {
-                    meas_dur = (meas_dur as libc::c_uint).wrapping_add(1000 as libc::c_uint) as u32;
+                    meas_dur = (meas_dur as ffi::c_uint).wrapping_add(1000 as ffi::c_uint) as u32;
                 }
             }
             return meas_dur;
@@ -581,9 +577,9 @@ impl<I: Interface> Device<I> {
     ) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
-            let mut i: u8 = 0 as libc::c_int as u8;
-            let mut j: u8 = 0 as libc::c_int as u8;
-            let mut new_fields: u8 = 0 as libc::c_int as u8;
+            let mut i: u8 = 0 as ffi::c_int as u8;
+            let mut j: u8 = 0 as ffi::c_int as u8;
+            let mut new_fields: u8 = 0 as ffi::c_int as u8;
             let mut field_ptr: [*mut SensorData; 3] = [
                 0 as *mut SensorData,
                 0 as *mut SensorData,
@@ -592,7 +588,7 @@ impl<I: Interface> Device<I> {
             let mut field_data: [SensorData; 3] = [
                 {
                     let init = SensorData {
-                        status: 0 as libc::c_int as u8,
+                        status: 0 as ffi::c_int as u8,
                         gas_index: 0,
                         meas_index: 0,
                         res_heat: 0,
@@ -631,66 +627,65 @@ impl<I: Interface> Device<I> {
                 },
             ];
             field_ptr[0] =
-                &mut *field_data.as_mut_ptr().offset(0 as libc::c_int as isize) as *mut SensorData;
+                &mut *field_data.as_mut_ptr().offset(0 as ffi::c_int as isize) as *mut SensorData;
             field_ptr[1] =
-                &mut *field_data.as_mut_ptr().offset(1 as libc::c_int as isize) as *mut SensorData;
+                &mut *field_data.as_mut_ptr().offset(1 as ffi::c_int as isize) as *mut SensorData;
             field_ptr[2] =
-                &mut *field_data.as_mut_ptr().offset(2 as libc::c_int as isize) as *mut SensorData;
+                &mut *field_data.as_mut_ptr().offset(2 as ffi::c_int as isize) as *mut SensorData;
             rslt = null_ptr_check(self);
-            if rslt as libc::c_int == 0 as libc::c_int && !data.is_null() {
-                if op_mode as libc::c_int == 1 as libc::c_int {
-                    rslt = read_field_data(0 as libc::c_int as u8, data, self);
-                    if rslt as libc::c_int == 0 as libc::c_int {
-                        if (*data).status as libc::c_int & 0x80 as libc::c_int != 0 {
-                            new_fields = 1 as libc::c_int as u8;
+            if rslt as ffi::c_int == 0 as ffi::c_int && !data.is_null() {
+                if op_mode as ffi::c_int == 1 as ffi::c_int {
+                    rslt = read_field_data(0 as ffi::c_int as u8, data, self);
+                    if rslt as ffi::c_int == 0 as ffi::c_int {
+                        if (*data).status as ffi::c_int & 0x80 as ffi::c_int != 0 {
+                            new_fields = 1 as ffi::c_int as u8;
                         } else {
-                            new_fields = 0 as libc::c_int as u8;
-                            rslt = 2 as libc::c_int as i8;
+                            new_fields = 0 as ffi::c_int as u8;
+                            rslt = 2 as ffi::c_int as i8;
                         }
                     }
-                } else if op_mode as libc::c_int == 2 as libc::c_int
-                    || op_mode as libc::c_int == 3 as libc::c_int
+                } else if op_mode as ffi::c_int == 2 as ffi::c_int
+                    || op_mode as ffi::c_int == 3 as ffi::c_int
                 {
                     rslt =
                         read_all_field_data(field_ptr.as_mut_ptr() as *const *mut SensorData, self);
-                    new_fields = 0 as libc::c_int as u8;
-                    i = 0 as libc::c_int as u8;
-                    while (i as libc::c_int) < 3 as libc::c_int
-                        && rslt as libc::c_int == 0 as libc::c_int
+                    new_fields = 0 as ffi::c_int as u8;
+                    i = 0 as ffi::c_int as u8;
+                    while (i as ffi::c_int) < 3 as ffi::c_int
+                        && rslt as ffi::c_int == 0 as ffi::c_int
                     {
-                        if (*field_ptr[i as usize]).status as libc::c_int & 0x80 as libc::c_int != 0
-                        {
+                        if (*field_ptr[i as usize]).status as ffi::c_int & 0x80 as ffi::c_int != 0 {
                             new_fields = new_fields.wrapping_add(1);
                         }
                         i = i.wrapping_add(1);
                     }
-                    i = 0 as libc::c_int as u8;
-                    while (i as libc::c_int) < 2 as libc::c_int
-                        && rslt as libc::c_int == 0 as libc::c_int
+                    i = 0 as ffi::c_int as u8;
+                    while (i as ffi::c_int) < 2 as ffi::c_int
+                        && rslt as ffi::c_int == 0 as ffi::c_int
                     {
-                        j = (i as libc::c_int + 1 as libc::c_int) as u8;
-                        while (j as libc::c_int) < 3 as libc::c_int {
+                        j = (i as ffi::c_int + 1 as ffi::c_int) as u8;
+                        while (j as ffi::c_int) < 3 as ffi::c_int {
                             sort_sensor_data(i, j, field_ptr.as_mut_ptr());
                             j = j.wrapping_add(1);
                         }
                         i = i.wrapping_add(1);
                     }
-                    i = 0 as libc::c_int as u8;
-                    while (i as libc::c_int) < 3 as libc::c_int
-                        && rslt as libc::c_int == 0 as libc::c_int
+                    i = 0 as ffi::c_int as u8;
+                    while (i as ffi::c_int) < 3 as ffi::c_int
+                        && rslt as ffi::c_int == 0 as ffi::c_int
                     {
                         *data.offset(i as isize) = *field_ptr[i as usize];
                         i = i.wrapping_add(1);
                     }
-                    if new_fields as libc::c_int == 0 as libc::c_int {
-                        rslt = 2 as libc::c_int as i8;
+                    if new_fields as ffi::c_int == 0 as ffi::c_int {
+                        rslt = 2 as ffi::c_int as i8;
                     }
                 } else {
-                    rslt = 1 as libc::c_int as i8;
+                    rslt = 1 as ffi::c_int as i8;
                 }
                 *n_data = new_fields;
             } else {
-                rslt = -(1 as libc::c_int) as i8;
+                rslt = -(1 as ffi::c_int) as i8;
             }
             check_rslt(rslt)
         }
@@ -704,45 +699,45 @@ impl<I: Interface> Device<I> {
     ) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
-            let mut nb_conv: u8 = 0 as libc::c_int as u8;
+            let mut nb_conv: u8 = 0 as ffi::c_int as u8;
             let mut hctrl: u8 = 0;
-            let mut run_gas: u8 = 0 as libc::c_int as u8;
+            let mut run_gas: u8 = 0 as ffi::c_int as u8;
             let mut ctrl_gas_data: [u8; 2] = [0; 2];
-            let mut ctrl_gas_addr: [u8; 2] = [0x70 as libc::c_int as u8, 0x71 as libc::c_int as u8];
+            let mut ctrl_gas_addr: [u8; 2] = [0x70 as ffi::c_int as u8, 0x71 as ffi::c_int as u8];
             self.set_op_mode(OperationMode::Sleep)?;
             // NOTE BWB, not the same as self.set_config
             rslt = set_conf(&conf, op_mode as u8, &mut nb_conv, self);
-            if rslt as libc::c_int == 0 as libc::c_int {
+            if rslt as ffi::c_int == 0 as ffi::c_int {
                 self.get_regs(
-                    0x70 as libc::c_int as u8,
+                    0x70 as ffi::c_int as u8,
                     ctrl_gas_data.as_mut_ptr(),
-                    2 as libc::c_int as u32,
+                    2 as ffi::c_int as u32,
                 )?;
-                if rslt as libc::c_int == 0 as libc::c_int {
-                    if conf.enable as libc::c_int == 0x1 as libc::c_int {
-                        hctrl = 0 as libc::c_int as u8;
-                        if (*self).variant_id == 0x1 as libc::c_int as libc::c_uint {
-                            run_gas = 0x2 as libc::c_int as u8;
+                if rslt as ffi::c_int == 0 as ffi::c_int {
+                    if conf.enable as ffi::c_int == 0x1 as ffi::c_int {
+                        hctrl = 0 as ffi::c_int as u8;
+                        if (*self).variant_id == 0x1 as ffi::c_int as ffi::c_uint {
+                            run_gas = 0x2 as ffi::c_int as u8;
                         } else {
-                            run_gas = 0x1 as libc::c_int as u8;
+                            run_gas = 0x1 as ffi::c_int as u8;
                         }
                     } else {
-                        hctrl = 0x1 as libc::c_int as u8;
-                        run_gas = 0 as libc::c_int as u8;
+                        hctrl = 0x1 as ffi::c_int as u8;
+                        run_gas = 0 as ffi::c_int as u8;
                     }
-                    ctrl_gas_data[0] = (ctrl_gas_data[0] as libc::c_int & !(0x8 as libc::c_int)
-                        | (hctrl as libc::c_int) << 3 as libc::c_int & 0x8 as libc::c_int)
+                    ctrl_gas_data[0] = (ctrl_gas_data[0] as ffi::c_int & !(0x8 as ffi::c_int)
+                        | (hctrl as ffi::c_int) << 3 as ffi::c_int & 0x8 as ffi::c_int)
                         as u8;
-                    ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int & !(0xf as libc::c_int)
-                        | nb_conv as libc::c_int & 0xf as libc::c_int)
+                    ctrl_gas_data[1] = (ctrl_gas_data[1] as ffi::c_int & !(0xf as ffi::c_int)
+                        | nb_conv as ffi::c_int & 0xf as ffi::c_int)
                         as u8;
-                    ctrl_gas_data[1] = (ctrl_gas_data[1] as libc::c_int & !(0x30 as libc::c_int)
-                        | (run_gas as libc::c_int) << 4 as libc::c_int & 0x30 as libc::c_int)
+                    ctrl_gas_data[1] = (ctrl_gas_data[1] as ffi::c_int & !(0x30 as ffi::c_int)
+                        | (run_gas as ffi::c_int) << 4 as ffi::c_int & 0x30 as ffi::c_int)
                         as u8;
                     self.set_regs(
                         ctrl_gas_addr.as_mut_ptr(),
                         ctrl_gas_data.as_mut_ptr(),
-                        2 as libc::c_int as u32,
+                        2 as ffi::c_int as u32,
                     )?;
                 }
             }
@@ -754,29 +749,29 @@ impl<I: Interface> Device<I> {
     pub fn get_gas_heater_conf(&mut self, config: GasHeaterConfig) -> Result<(), Error> {
         self.gas_heater_config = config;
         unsafe {
-            let mut data_array: [u8; 10] = [0 as libc::c_int as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            let mut data_array: [u8; 10] = [0 as ffi::c_int as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             let mut i: u8 = 0;
             self.get_regs(
-                0x5a as libc::c_int as u8,
+                0x5a as ffi::c_int as u8,
                 data_array.as_mut_ptr(),
-                10 as libc::c_int as u32,
+                10 as ffi::c_int as u32,
             )?;
             if !(self.gas_heater_config.heatr_dur_prof).is_null()
                 && !(self.gas_heater_config.heatr_temp_prof).is_null()
             {
-                i = 0 as libc::c_int as u8;
-                while (i as libc::c_int) < 10 as libc::c_int {
+                i = 0 as ffi::c_int as u8;
+                while (i as ffi::c_int) < 10 as ffi::c_int {
                     *(self.gas_heater_config.heatr_temp_prof).offset(i as isize) =
                         data_array[i as usize] as u16;
                     i = i.wrapping_add(1);
                 }
                 self.get_regs(
-                    0x64 as libc::c_int as u8,
+                    0x64 as ffi::c_int as u8,
                     data_array.as_mut_ptr(),
-                    10 as libc::c_int as u32,
+                    10 as ffi::c_int as u32,
                 )?;
-                i = 0 as libc::c_int as u8;
-                while (i as libc::c_int) < 10 as libc::c_int {
+                i = 0 as ffi::c_int as u8;
+                while (i as ffi::c_int) < 10 as ffi::c_int {
                     *(self.gas_heater_config.heatr_dur_prof).offset(i as isize) =
                         data_array[i as usize] as u16;
                     i = i.wrapping_add(1);

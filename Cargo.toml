@@ -10,7 +10,6 @@ keywords = ["sensor", "no_std", "air", "embedded"]
 categories = ["embedded"]
 
 [dependencies]
-libc = "0.2"
 
 [dev-dependencies.clap]
 version = "3"
