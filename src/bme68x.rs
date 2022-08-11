@@ -754,7 +754,6 @@ impl<I: Interface> Device<I> {
     pub fn get_gas_heater_conf(&mut self, config: GasHeaterConfig) -> Result<(), Error> {
         self.gas_heater_config = config;
         unsafe {
-            let mut rslt: i8 = 0;
             let mut data_array: [u8; 10] = [0 as libc::c_int as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             let mut i: u8 = 0;
             self.get_regs(
@@ -762,34 +761,30 @@ impl<I: Interface> Device<I> {
                 data_array.as_mut_ptr(),
                 10 as libc::c_int as u32,
             )?;
-            if rslt as libc::c_int == 0 as libc::c_int {
-                if !(self.gas_heater_config.heatr_dur_prof).is_null()
-                    && !(self.gas_heater_config.heatr_temp_prof).is_null()
-                {
-                    i = 0 as libc::c_int as u8;
-                    while (i as libc::c_int) < 10 as libc::c_int {
-                        *(self.gas_heater_config.heatr_temp_prof).offset(i as isize) =
-                            data_array[i as usize] as u16;
-                        i = i.wrapping_add(1);
-                    }
-                    self.get_regs(
-                        0x64 as libc::c_int as u8,
-                        data_array.as_mut_ptr(),
-                        10 as libc::c_int as u32,
-                    )?;
-                    if rslt as libc::c_int == 0 as libc::c_int {
-                        i = 0 as libc::c_int as u8;
-                        while (i as libc::c_int) < 10 as libc::c_int {
-                            *(self.gas_heater_config.heatr_dur_prof).offset(i as isize) =
-                                data_array[i as usize] as u16;
-                            i = i.wrapping_add(1);
-                        }
-                    }
-                } else {
-                    rslt = -(1 as libc::c_int) as i8;
+            if !(self.gas_heater_config.heatr_dur_prof).is_null()
+                && !(self.gas_heater_config.heatr_temp_prof).is_null()
+            {
+                i = 0 as libc::c_int as u8;
+                while (i as libc::c_int) < 10 as libc::c_int {
+                    *(self.gas_heater_config.heatr_temp_prof).offset(i as isize) =
+                        data_array[i as usize] as u16;
+                    i = i.wrapping_add(1);
                 }
+                self.get_regs(
+                    0x64 as libc::c_int as u8,
+                    data_array.as_mut_ptr(),
+                    10 as libc::c_int as u32,
+                )?;
+                i = 0 as libc::c_int as u8;
+                while (i as libc::c_int) < 10 as libc::c_int {
+                    *(self.gas_heater_config.heatr_dur_prof).offset(i as isize) =
+                        data_array[i as usize] as u16;
+                    i = i.wrapping_add(1);
+                }
+                Ok(())
+            } else {
+                Err(Error::NullPointer)
             }
-            check_rslt(rslt)
         }
     }
 }
