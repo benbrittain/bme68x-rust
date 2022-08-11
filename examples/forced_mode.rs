@@ -96,7 +96,7 @@ fn main() -> Result<(), Error> {
 
         // Delay the remaining duration that can be used for heating
         let del_period = bme
-            .get_measure_duration(1)
+            .get_measure_duration(OperationMode::Forced)
             .wrapping_add(heatr_conf.heatr_dur as u32 * 1000);
         bme.interface.delay(del_period);
 

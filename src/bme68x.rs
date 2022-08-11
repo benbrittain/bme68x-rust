@@ -462,7 +462,7 @@ impl<I: Interface> Device<I> {
     }
 
     /// Used to get the remaining duration that can be used for heating.
-    pub fn get_measure_duration(&mut self, op_mode: u8) -> u32 {
+    pub fn get_measure_duration(&mut self, op_mode: OperationMode) -> u32 {
         unsafe {
             let mut rslt: i8 = 0;
             let mut meas_dur: u32 = 0 as libc::c_int as u32;
@@ -497,9 +497,8 @@ impl<I: Interface> Device<I> {
                 meas_dur = (meas_dur as libc::c_uint).wrapping_add(
                     (477 as libc::c_int as libc::c_uint).wrapping_mul(5 as libc::c_uint),
                 ) as u32 as u32;
-                if op_mode as libc::c_int != 2 as libc::c_int {
-                    meas_dur =
-                        (meas_dur as libc::c_uint).wrapping_add(1000 as libc::c_uint) as u32 as u32;
+                if op_mode != OperationMode::Parallel {
+                    meas_dur = (meas_dur as libc::c_uint).wrapping_add(1000 as libc::c_uint) as u32;
                 }
             }
             return meas_dur;
