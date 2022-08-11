@@ -85,7 +85,7 @@ fn main() -> Result<(), Error> {
     heatr_conf.enable = 0x1;
     heatr_conf.heatr_temp = 300;
     heatr_conf.heatr_dur = 100;
-    bme.set_heatr_conf(1, &mut heatr_conf)?;
+    bme.set_gas_heater_conf(1, &mut heatr_conf)?;
 
     let time_ms = std::time::Instant::now();
     println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
@@ -95,7 +95,7 @@ fn main() -> Result<(), Error> {
 
         // Delay the remaining duration that can be used for heating
         let del_period = bme
-            .get_meas_dur(1, &mut conf)
+            .get_measure_duration(1, &mut conf)
             .wrapping_add(heatr_conf.heatr_dur as u32 * 1000);
         bme.interface.delay(del_period);
 
