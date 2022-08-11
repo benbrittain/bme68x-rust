@@ -14,6 +14,7 @@ pub enum OperationMode {
     /// Multiple TPHG cycles are performed. Gas sensor heater operates in parallel to TPH
     /// measurement. Does not return to Sleep Mode.
     Parallel = 2,
+    Sequential = 3,
 }
 
 /// Hardware communication interface (SPI & I2C)
@@ -109,16 +110,40 @@ impl DeviceConfig {
 
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct HeaterConf {
-    pub enable: u8,
-    pub heatr_temp: u16,
-    pub heatr_dur: u16,
-    pub heatr_temp_prof: *mut u16,
-    pub heatr_dur_prof: *mut u16,
-    pub profile_len: u8,
-    pub shared_heatr_dur: u16,
+pub struct GasHeaterConfig {
+    pub(crate) enable: u8,
+    pub(crate) heatr_temp: u16,
+    pub(crate) heatr_dur: u16,
+    pub(crate) heatr_temp_prof: *mut u16,
+    pub(crate) heatr_dur_prof: *mut u16,
+    pub(crate) profile_len: u8,
+    pub(crate) shared_heatr_dur: u16,
 }
-impl Default for HeaterConf {
+
+impl GasHeaterConfig {
+    pub fn enable(&self) -> Self {
+        let mut conf = *self;
+        conf.enable = true as u8;
+        conf
+    }
+    pub fn heater_temp(&self, temp: u16) -> Self {
+        let mut conf = *self;
+        conf.heatr_temp = temp;
+        conf
+    }
+    pub fn heater_duration(&self, duration: u16) -> Self {
+        let mut conf = *self;
+        conf.heatr_dur = duration;
+        conf
+    }
+    pub fn disable(&self) -> Self {
+        let mut conf = *self;
+        conf.enable = false as u8;
+        conf
+    }
+}
+
+impl Default for GasHeaterConfig {
     fn default() -> Self {
         Self {
             enable: 0,
@@ -151,6 +176,7 @@ impl Default for HeaterConf {
 pub struct Device<I: Interface> {
     pub interface: I,
     pub config: DeviceConfig,
+    pub gas_heater_config: GasHeaterConfig,
     pub(crate) variant_id: u32,
     pub(crate) mem_page: u8,
     pub(crate) amb_temp: i8,
@@ -173,6 +199,7 @@ impl<I: Interface> Device<I> {
             interface,
             mem_page: 0,
             amb_temp,
+            gas_heater_config: GasHeaterConfig::default(),
             config: DeviceConfig::default(),
             calib: CalibrationData {
                 par_h1: 0,
@@ -633,7 +660,11 @@ impl<I: Interface> Device<I> {
     }
 
     /// Used to set the gas configuration of the sensor.
-    pub fn set_gas_heater_conf(&mut self, op_mode: u8, conf: &HeaterConf) -> Result<(), Error> {
+    pub fn set_gas_heater_conf(
+        &mut self,
+        op_mode: OperationMode,
+        conf: GasHeaterConfig,
+    ) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
             let mut nb_conv: u8 = 0 as libc::c_int as u8;
@@ -643,7 +674,7 @@ impl<I: Interface> Device<I> {
             let mut ctrl_gas_addr: [u8; 2] = [0x70 as libc::c_int as u8, 0x71 as libc::c_int as u8];
             self.set_op_mode(OperationMode::Sleep)?;
             // NOTE BWB, not the same as self.set_config
-            rslt = set_conf(conf, op_mode, &mut nb_conv, self);
+            rslt = set_conf(&conf, op_mode as u8, &mut nb_conv, self);
             if rslt as libc::c_int == 0 as libc::c_int {
                 self.get_regs(
                     0x70 as libc::c_int as u8,
@@ -651,7 +682,7 @@ impl<I: Interface> Device<I> {
                     2 as libc::c_int as u32,
                 )?;
                 if rslt as libc::c_int == 0 as libc::c_int {
-                    if (*conf).enable as libc::c_int == 0x1 as libc::c_int {
+                    if conf.enable as libc::c_int == 0x1 as libc::c_int {
                         hctrl = 0 as libc::c_int as u8;
                         if (*self).variant_id == 0x1 as libc::c_int as libc::c_uint {
                             run_gas = 0x2 as libc::c_int as u8;
@@ -683,7 +714,8 @@ impl<I: Interface> Device<I> {
     }
 
     /// Used to get the gas configuration of the sensor.
-    pub fn get_gas_heater_conf(&mut self, conf: &HeaterConf) -> Result<(), Error> {
+    pub fn get_gas_heater_conf(&mut self, config: GasHeaterConfig) -> Result<(), Error> {
+        self.gas_heater_config = config;
         unsafe {
             let mut rslt: i8 = 0;
             let mut data_array: [u8; 10] = [0 as libc::c_int as u8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -694,10 +726,12 @@ impl<I: Interface> Device<I> {
                 10 as libc::c_int as u32,
             )?;
             if rslt as libc::c_int == 0 as libc::c_int {
-                if !(conf.heatr_dur_prof).is_null() && !(conf.heatr_temp_prof).is_null() {
+                if !(self.gas_heater_config.heatr_dur_prof).is_null()
+                    && !(self.gas_heater_config.heatr_temp_prof).is_null()
+                {
                     i = 0 as libc::c_int as u8;
                     while (i as libc::c_int) < 10 as libc::c_int {
-                        *((*conf).heatr_temp_prof).offset(i as isize) =
+                        *(self.gas_heater_config.heatr_temp_prof).offset(i as isize) =
                             data_array[i as usize] as u16;
                         i = i.wrapping_add(1);
                     }
@@ -709,7 +743,7 @@ impl<I: Interface> Device<I> {
                     if rslt as libc::c_int == 0 as libc::c_int {
                         i = 0 as libc::c_int as u8;
                         while (i as libc::c_int) < 10 as libc::c_int {
-                            *((*conf).heatr_dur_prof).offset(i as isize) =
+                            *(self.gas_heater_config.heatr_dur_prof).offset(i as isize) =
                                 data_array[i as usize] as u16;
                             i = i.wrapping_add(1);
                         }

@@ -1,4 +1,4 @@
-use crate::{Device, HeaterConf, Interface, SensorData};
+use crate::{Device, GasHeaterConfig, Interface, SensorData};
 use libc;
 
 pub(crate) unsafe fn calc_temperature<I: Interface>(
@@ -566,7 +566,7 @@ pub(crate) unsafe fn null_ptr_check<I: Interface>(dev: *const Device<I>) -> i8 {
     return rslt;
 }
 pub(crate) unsafe fn set_conf<I: Interface>(
-    conf: *const HeaterConf,
+    conf: *const GasHeaterConfig,
     op_mode: u8,
     nb_conv: *mut u8,
     dev: *mut Device<I>,

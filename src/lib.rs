@@ -5,7 +5,7 @@
 
 mod bme68x;
 mod internal;
-pub use bme68x::{CommInterface, Device, DeviceConfig, HeaterConf, OperationMode, SensorData};
+pub use bme68x::{CommInterface, Device, DeviceConfig, GasHeaterConfig, OperationMode, SensorData};
 
 mod interface;
 pub use interface::{Error, Interface};

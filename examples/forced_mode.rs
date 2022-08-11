@@ -1,5 +1,6 @@
 use bme68x_rust::{
-    CommInterface, Device, DeviceConfig, Error, HeaterConf, Interface, OperationMode, SensorData,
+    CommInterface, Device, DeviceConfig, Error, GasHeaterConfig, Interface, OperationMode,
+    SensorData,
 };
 use clap::Parser;
 use std::{path::PathBuf, process::Command};
@@ -82,11 +83,13 @@ fn main() -> Result<(), Error> {
     )?;
 
     // configure heater
-    let mut heatr_conf: HeaterConf = HeaterConf::default();
-    heatr_conf.enable = 0x1;
-    heatr_conf.heatr_temp = 300;
-    heatr_conf.heatr_dur = 100;
-    bme.set_gas_heater_conf(1, &mut heatr_conf)?;
+    bme.set_gas_heater_conf(
+        OperationMode::Forced,
+        GasHeaterConfig::default()
+            .enable()
+            .heater_temp(300)
+            .heater_duration(100),
+    )?;
 
     let time_ms = std::time::Instant::now();
     println!("Sample, TimeStamp(ms), Temperature(deg C), Pressure(Pa), Humidity(%%), Gas resistance(ohm), Status");
@@ -97,7 +100,7 @@ fn main() -> Result<(), Error> {
         // Delay the remaining duration that can be used for heating
         let del_period = bme
             .get_measure_duration(OperationMode::Forced)
-            .wrapping_add(heatr_conf.heatr_dur as u32 * 1000);
+            .wrapping_add(300 as u32 * 1000);
         bme.interface.delay(del_period);
 
         // Get the sensor data
