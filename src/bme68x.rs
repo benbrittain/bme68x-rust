@@ -71,13 +71,42 @@ pub struct CalibrationData {
 }
 #[derive(Copy, Clone, Default)]
 #[repr(C)]
-pub struct DeviceConf {
-    pub os_hum: u8,
-    pub os_temp: u8,
-    pub os_pres: u8,
-    pub filter: u8,
-    pub odr: u8,
+pub struct DeviceConfig {
+    os_hum: u8,
+    os_temp: u8,
+    os_pres: u8,
+    filter: u8,
+    odr: u8,
 }
+
+impl DeviceConfig {
+    pub fn filter(&self, filter: u8) -> Self {
+        let mut conf = *self;
+        conf.filter = filter;
+        conf
+    }
+    pub fn odr(&self, odr: u8) -> Self {
+        let mut conf = *self;
+        conf.odr = odr;
+        conf
+    }
+    pub fn oversample_humidity(&self, h: u8) -> Self {
+        let mut conf = *self;
+        conf.os_hum = h;
+        conf
+    }
+    pub fn oversample_pressure(&self, p: u8) -> Self {
+        let mut conf = *self;
+        conf.os_pres = p;
+        conf
+    }
+    pub fn oversample_temperature(&self, t: u8) -> Self {
+        let mut conf = *self;
+        conf.os_temp = t;
+        conf
+    }
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct HeaterConf {
@@ -110,11 +139,18 @@ impl Default for HeaterConf {
 ///      spicl: args.spicl,
 ///      tty: args.tty,
 ///  })?;
+///
+///  bme.set_config(DeviceConfigig::default()
+///                  .filter(0)
+///                  .odr(8)
+///                  .oversample_humidity(5)
+///                  .oversample_pressure(1)
+///                  .oversample_temperature(2))?;
 /// ```
-/// TODO put more here
 ///
 pub struct Device<I: Interface> {
     pub interface: I,
+    pub config: DeviceConfig,
     pub(crate) variant_id: u32,
     pub(crate) mem_page: u8,
     pub(crate) amb_temp: i8,
@@ -137,6 +173,7 @@ impl<I: Interface> Device<I> {
             interface,
             mem_page: 0,
             amb_temp,
+            config: DeviceConfig::default(),
             calib: CalibrationData {
                 par_h1: 0,
                 par_h2: 0,
@@ -296,57 +333,48 @@ impl<I: Interface> Device<I> {
     }
 
     /// Used to set the oversampling, filter and odr configuration.
-    pub fn set_conf(&mut self, conf: &mut DeviceConf) -> Result<(), Error> {
+    pub fn set_config(&mut self, conf: DeviceConfig) -> Result<(), Error> {
+        self.config = conf;
         unsafe {
             let mut rslt: i8 = 0;
-            let mut odr20: u8 = 0 as libc::c_int as u8;
-            let mut odr3: u8 = 1 as libc::c_int as u8;
-            let mut reg_array: [u8; 5] = [
-                0x71 as libc::c_int as u8,
-                0x72 as libc::c_int as u8,
-                0x73 as libc::c_int as u8,
-                0x74 as libc::c_int as u8,
-                0x75 as libc::c_int as u8,
-            ];
-            let mut data_array: [u8; 5] = [0 as libc::c_int as u8, 0, 0, 0, 0];
+            let mut odr20: u8 = 0;
+            let mut odr3: u8 = 1;
+            let mut reg_array: [u8; 5] = [0x71, 0x72, 0x73, 0x74, 0x75];
+            let mut data_array: [u8; 5] = [0, 0, 0, 0, 0];
             let current_op_mode = self.get_op_mode()?;
             self.set_op_mode(OperationMode::Sleep)?;
-            self.get_regs(
-                reg_array[0],
-                data_array.as_mut_ptr(),
-                5 as libc::c_int as u32,
-            )?;
-            (*self).info_msg = 0 as libc::c_int as u8;
-            if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut (*conf).filter, 7 as libc::c_int as u8, self);
+            self.get_regs(reg_array[0], data_array.as_mut_ptr(), 5)?;
+            (*self).info_msg = 0 as u8;
+            if rslt == 0 {
+                rslt = boundary_check(&mut self.config.filter, 7 as u8, self);
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut (*conf).os_temp, 5 as libc::c_int as u8, self);
+            if rslt == 0 {
+                rslt = boundary_check(&mut self.config.os_temp, 5 as u8, self);
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut (*conf).os_pres, 5 as libc::c_int as u8, self);
+            if rslt == 0 {
+                rslt = boundary_check(&mut self.config.os_pres, 5 as u8, self);
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut (*conf).os_hum, 5 as libc::c_int as u8, self);
+            if rslt == 0 {
+                rslt = boundary_check(&mut self.config.os_hum, 5 as u8, self);
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut (*conf).odr, 8 as libc::c_int as u8, self);
+            if rslt == 0 {
+                rslt = boundary_check(&mut self.config.odr, 8 as u8, self);
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
+            if rslt == 0 {
                 data_array[4] = (data_array[4] as libc::c_int & !(0x1c as libc::c_int)
-                    | ((*conf).filter as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
+                    | (self.config.filter as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
                     as u8;
                 data_array[3] = (data_array[3] as libc::c_int & !(0xe0 as libc::c_int)
-                    | ((*conf).os_temp as libc::c_int) << 5 as libc::c_int & 0xe0 as libc::c_int)
-                    as u8;
+                    | (self.config.os_temp as libc::c_int) << 5 as libc::c_int
+                        & 0xe0 as libc::c_int) as u8;
                 data_array[3] = (data_array[3] as libc::c_int & !(0x1c as libc::c_int)
-                    | ((*conf).os_pres as libc::c_int) << 2 as libc::c_int & 0x1c as libc::c_int)
-                    as u8;
+                    | (self.config.os_pres as libc::c_int) << 2 as libc::c_int
+                        & 0x1c as libc::c_int) as u8;
                 data_array[1] = (data_array[1] as libc::c_int & !(0x7 as libc::c_int)
-                    | (*conf).os_hum as libc::c_int & 0x7 as libc::c_int)
+                    | self.config.os_hum as libc::c_int & 0x7 as libc::c_int)
                     as u8;
-                if (*conf).odr as libc::c_int != 8 as libc::c_int {
-                    odr20 = (*conf).odr;
+                if self.config.odr as libc::c_int != 8 as libc::c_int {
+                    odr20 = self.config.odr;
                     odr3 = 0 as libc::c_int as u8;
                 }
                 data_array[4] = (data_array[4] as libc::c_int & !(0xe0 as libc::c_int)
@@ -356,14 +384,10 @@ impl<I: Interface> Device<I> {
                     | (odr3 as libc::c_int) << 7 as libc::c_int & 0x80 as libc::c_int)
                     as u8;
             }
-            if rslt as libc::c_int == 0 as libc::c_int {
-                self.set_regs(
-                    reg_array.as_mut_ptr(),
-                    data_array.as_mut_ptr(),
-                    5 as libc::c_int as u32,
-                )?;
+            if rslt == 0 {
+                self.set_regs(reg_array.as_mut_ptr(), data_array.as_mut_ptr(), 5)?;
             }
-            if current_op_mode != OperationMode::Sleep && rslt as libc::c_int == 0 as libc::c_int {
+            if current_op_mode != OperationMode::Sleep && rslt == 0 {
                 self.set_op_mode(current_op_mode)?;
             }
             return check_rslt(rslt);
@@ -371,7 +395,7 @@ impl<I: Interface> Device<I> {
     }
 
     /// Used to get the oversampling, filter and odr configurations.
-    pub fn get_conf(&mut self, mut conf: &mut DeviceConf) -> Result<(), Error> {
+    pub fn get_conf(&mut self, mut conf: &mut DeviceConfig) -> Result<(), Error> {
         let reg_addr: u8 = 0x71 as libc::c_int as u8;
         let mut data_array: [u8; 5] = [0; 5];
         self.get_regs(reg_addr, data_array.as_mut_ptr(), 5 as libc::c_int as u32)?;
@@ -438,7 +462,7 @@ impl<I: Interface> Device<I> {
     }
 
     /// Used to get the remaining duration that can be used for heating.
-    pub fn get_measure_duration(&mut self, op_mode: u8, conf: &mut DeviceConf) -> u32 {
+    pub fn get_measure_duration(&mut self, op_mode: u8) -> u32 {
         unsafe {
             let mut rslt: i8 = 0;
             let mut meas_dur: u32 = 0 as libc::c_int as u32;
@@ -451,20 +475,20 @@ impl<I: Interface> Device<I> {
                 8 as libc::c_int as u8,
                 16 as libc::c_int as u8,
             ];
-            rslt = boundary_check(&mut (*conf).os_temp, 5 as libc::c_int as u8, self);
+            rslt = boundary_check(&mut self.config.os_temp, 5 as libc::c_int as u8, self);
             if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut (*conf).os_pres, 5 as libc::c_int as u8, self);
+                rslt = boundary_check(&mut self.config.os_pres, 5 as libc::c_int as u8, self);
             }
             if rslt as libc::c_int == 0 as libc::c_int {
-                rslt = boundary_check(&mut (*conf).os_hum, 5 as libc::c_int as u8, self);
+                rslt = boundary_check(&mut self.config.os_hum, 5 as libc::c_int as u8, self);
             }
             if rslt as libc::c_int == 0 as libc::c_int {
-                meas_cycles = os_to_meas_cycles[(*conf).os_temp as usize] as u32;
+                meas_cycles = os_to_meas_cycles[self.config.os_temp as usize] as u32;
                 meas_cycles = (meas_cycles as libc::c_uint)
-                    .wrapping_add(os_to_meas_cycles[(*conf).os_pres as usize] as libc::c_uint)
+                    .wrapping_add(os_to_meas_cycles[self.config.os_pres as usize] as libc::c_uint)
                     as u32 as u32;
                 meas_cycles = (meas_cycles as libc::c_uint)
-                    .wrapping_add(os_to_meas_cycles[(*conf).os_hum as usize] as libc::c_uint)
+                    .wrapping_add(os_to_meas_cycles[self.config.os_hum as usize] as libc::c_uint)
                     as u32 as u32;
                 meas_dur = meas_cycles.wrapping_mul(1963 as libc::c_uint);
                 meas_dur = (meas_dur as libc::c_uint).wrapping_add(
@@ -490,7 +514,7 @@ impl<I: Interface> Device<I> {
         &mut self,
         op_mode: u8,
         data: *mut SensorData,
-        n_data: *mut u8,
+        n_data: &mut u8,
     ) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
@@ -601,11 +625,7 @@ impl<I: Interface> Device<I> {
                 } else {
                     rslt = 1 as libc::c_int as i8;
                 }
-                if n_data.is_null() {
-                    rslt = -(1 as libc::c_int) as i8;
-                } else {
-                    *n_data = new_fields;
-                }
+                *n_data = new_fields;
             } else {
                 rslt = -(1 as libc::c_int) as i8;
             }
@@ -623,6 +643,7 @@ impl<I: Interface> Device<I> {
             let mut ctrl_gas_data: [u8; 2] = [0; 2];
             let mut ctrl_gas_addr: [u8; 2] = [0x70 as libc::c_int as u8, 0x71 as libc::c_int as u8];
             self.set_op_mode(OperationMode::Sleep)?;
+            // NOTE BWB, not the same as self.set_config
             rslt = set_conf(conf, op_mode, &mut nb_conv, self);
             if rslt as libc::c_int == 0 as libc::c_int {
                 self.get_regs(

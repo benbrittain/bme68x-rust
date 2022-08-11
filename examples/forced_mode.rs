@@ -1,5 +1,5 @@
 use bme68x_rust::{
-    CommInterface, Device, DeviceConf, Error, HeaterConf, Interface, OperationMode, SensorData,
+    CommInterface, Device, DeviceConfig, Error, HeaterConf, Interface, OperationMode, SensorData,
 };
 use clap::Parser;
 use std::{path::PathBuf, process::Command};
@@ -72,13 +72,14 @@ fn main() -> Result<(), Error> {
     })?;
 
     // configure device
-    let mut conf: DeviceConf = DeviceConf::default();
-    conf.filter = 0;
-    conf.odr = 8;
-    conf.os_hum = 5;
-    conf.os_pres = 1;
-    conf.os_temp = 2;
-    bme.set_conf(&mut conf)?;
+    bme.set_config(
+        DeviceConfig::default()
+            .filter(0)
+            .odr(8)
+            .oversample_humidity(5)
+            .oversample_pressure(1)
+            .oversample_temperature(2),
+    )?;
 
     // configure heater
     let mut heatr_conf: HeaterConf = HeaterConf::default();
@@ -95,7 +96,7 @@ fn main() -> Result<(), Error> {
 
         // Delay the remaining duration that can be used for heating
         let del_period = bme
-            .get_measure_duration(1, &mut conf)
+            .get_measure_duration(1)
             .wrapping_add(heatr_conf.heatr_dur as u32 * 1000);
         bme.interface.delay(del_period);
 
