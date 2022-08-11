@@ -116,12 +116,16 @@ pub struct CalibrationData {
 }
 
 #[derive(Copy, Clone, Default)]
-#[repr(C)]
+/// Sensor settings structure
 pub struct DeviceConfig {
     os_hum: u8,
+    /// Temperature oversampling.
     os_temp: u8,
+    /// Pressure oversampling.
     os_pres: u8,
+    /// Filter coefficient.
     filter: u8,
+    /// Standby time between sequential mode measurement profiles.
     odr: u8,
 }
 
