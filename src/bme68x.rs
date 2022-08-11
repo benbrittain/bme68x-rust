@@ -17,6 +17,50 @@ pub enum OperationMode {
     Sequential = 3,
 }
 
+/// ODR/Standby time macros
+#[repr(u8)]
+pub enum Odr {
+    /// Standby time of 0.59ms
+    Standby0_59Ms = 0,
+    /// Standby time of 62.5ms
+    Standby62_5Ms = 1,
+    /// Standby time of 125ms
+    Standby125Ms = 2,
+    /// Standby time of 250ms
+    Standby250Ms = 3,
+    /// Standby time of 500ms
+    Standby500Ms = 4,
+    /// Standby time of 1s
+    Standby1000Ms = 5,
+    /// Standby time of 10ms
+    Standby10Ms = 6,
+    /// Standby time of 20ms
+    Standby20Ms = 7,
+    /// No standby time
+    StandbyNone = 8,
+}
+
+/// Possible IIR Filter settings
+#[repr(u8)]
+pub enum Filter {
+    /// Switch off the filter
+    Off = 0u8,
+    /// Filter coefficient of 2
+    Size1 = 1,
+    /// Filter coefficient of 4
+    Size3 = 2,
+    /// Filter coefficient of 8
+    Size7 = 3,
+    /// Filter coefficient of 16
+    Size15 = 4,
+    /// Filter coefficient of 32
+    Size31 = 5,
+    /// Filter coefficient of 64
+    Size63 = 6,
+    /// Filter coefficient of 128
+    Size127 = 7,
+}
+
 /// Hardware communication interface (SPI & I2C)
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CommInterface {
@@ -70,6 +114,7 @@ pub struct CalibrationData {
     pub res_heat_val: i8,
     pub range_sw_err: i8,
 }
+
 #[derive(Copy, Clone, Default)]
 #[repr(C)]
 pub struct DeviceConfig {
@@ -80,30 +125,46 @@ pub struct DeviceConfig {
     odr: u8,
 }
 
+/// Oversampling setting
+pub enum Sample {
+    /// Switch off measurements
+    Off = 0,
+    /// Perform 1 measurement
+    Once = 1,
+    /// Perform 2 measurements
+    X2 = 2,
+    /// Perform 4 measurements
+    X4 = 3,
+    /// Perform 8 measurements
+    X8 = 4,
+    /// Perform 16 measurements
+    X16 = 5,
+}
+
 impl DeviceConfig {
-    pub fn filter(&self, filter: u8) -> Self {
+    pub fn filter(&self, filter: Filter) -> Self {
         let mut conf = *self;
-        conf.filter = filter;
+        conf.filter = filter as u8;
         conf
     }
-    pub fn odr(&self, odr: u8) -> Self {
+    pub fn odr(&self, odr: Odr) -> Self {
         let mut conf = *self;
-        conf.odr = odr;
+        conf.odr = odr as u8;
         conf
     }
-    pub fn oversample_humidity(&self, h: u8) -> Self {
+    pub fn oversample_humidity(&self, h: Sample) -> Self {
         let mut conf = *self;
-        conf.os_hum = h;
+        conf.os_hum = h as u8;
         conf
     }
-    pub fn oversample_pressure(&self, p: u8) -> Self {
+    pub fn oversample_pressure(&self, p: Sample) -> Self {
         let mut conf = *self;
-        conf.os_pres = p;
+        conf.os_pres = p as u8;
         conf
     }
-    pub fn oversample_temperature(&self, t: u8) -> Self {
+    pub fn oversample_temperature(&self, t: Sample) -> Self {
         let mut conf = *self;
-        conf.os_temp = t;
+        conf.os_temp = t as u8;
         conf
     }
 }

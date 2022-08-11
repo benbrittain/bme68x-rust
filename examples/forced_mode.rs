@@ -1,6 +1,6 @@
 use bme68x_rust::{
-    CommInterface, Device, DeviceConfig, Error, GasHeaterConfig, Interface, OperationMode,
-    SensorData,
+    CommInterface, Device, DeviceConfig, Error, Filter, GasHeaterConfig, Interface, Odr,
+    OperationMode, Sample, SensorData,
 };
 use clap::Parser;
 use std::{path::PathBuf, process::Command};
@@ -75,11 +75,11 @@ fn main() -> Result<(), Error> {
     // configure device
     bme.set_config(
         DeviceConfig::default()
-            .filter(0)
-            .odr(8)
-            .oversample_humidity(5)
-            .oversample_pressure(1)
-            .oversample_temperature(2),
+            .filter(Filter::Off)
+            .odr(Odr::StandbyNone)
+            .oversample_humidity(Sample::X16)
+            .oversample_pressure(Sample::Once)
+            .oversample_temperature(Sample::X2),
     )?;
 
     // configure heater
