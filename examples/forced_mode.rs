@@ -63,15 +63,13 @@ struct Args {
 }
 
 fn main() -> Result<(), Error> {
-    // Init interface
     let args = Args::parse();
-    let mut bme = Device::new(SpiDriver {
+
+    // initialize the bme68x device
+    let mut bme = Device::initialize(SpiDriver {
         spicl: args.spicl,
         tty: args.tty,
-    });
-
-    // Init bme68x
-    bme.init()?;
+    })?;
 
     // configure device
     let mut conf: DeviceConf = DeviceConf::default();

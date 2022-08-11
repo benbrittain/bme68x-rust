@@ -115,11 +115,15 @@ pub struct Device<I: Interface> {
 }
 
 impl<I: Interface> Device<I> {
-    pub fn new(interface: I) -> Self {
+    /// Initialization.
+    ///
+    /// Reads the chip-id of the sensor which is the first step to verify the sensor
+    /// and also calibrates the sensor.
+    pub fn initialize(interface: I) -> Result<Self, Error> {
         // NOTE moved amb_temp from bme68x_interface_init since everything else that function did
         // is now contained within the interface trait.
         let amb_temp = 25;
-        Self {
+        let mut device = Self {
             variant_id: 0,
             interface,
             mem_page: 0,
@@ -155,35 +159,30 @@ impl<I: Interface> Device<I> {
             },
             interface_result: 0,
             info_msg: 0,
+        };
+
+        device.soft_reset()?;
+        let mut chip_id = 0;
+        device.get_regs(
+            0xd0 as libc::c_int as u8,
+            &mut chip_id,
+            1 as libc::c_int as u32,
+        )?;
+        let mut rslt: i8 = 0;
+        if chip_id == 0x61 {
+            rslt = read_variant_id(&mut device);
+            if rslt as libc::c_int == 0 as libc::c_int {
+                rslt = get_calib_data(&mut device);
+            }
+        } else {
+            rslt = -(3 as libc::c_int) as i8;
         }
+        check_rslt(rslt)?;
+        Ok(device)
     }
 
-    pub fn init(&mut self) -> Result<(), Error> {
-        unsafe {
-            let mut rslt: i8 = 0;
-            self.soft_reset()?;
-            if rslt as libc::c_int == 0 as libc::c_int {
-                let mut chip_id = 0;
-                self.get_regs(
-                    0xd0 as libc::c_int as u8,
-                    &mut chip_id,
-                    1 as libc::c_int as u32,
-                )?;
-                if rslt as libc::c_int == 0 as libc::c_int {
-                    if chip_id == 0x61 {
-                        rslt = read_variant_id(self);
-                        if rslt as libc::c_int == 0 as libc::c_int {
-                            rslt = get_calib_data(self);
-                        }
-                    } else {
-                        rslt = -(3 as libc::c_int) as i8;
-                    }
-                }
-            }
-            check_rslt(rslt)
-        }
-    }
-    pub fn set_regs(
+    /// Writes the given data to the register address of the sensor.
+    pub(crate) fn set_regs(
         &mut self,
         reg_addr: *const u8,
         reg_data: *const u8,
@@ -235,7 +234,9 @@ impl<I: Interface> Device<I> {
             check_rslt(rslt)
         }
     }
-    pub fn get_regs(&mut self, mut reg_addr: u8, reg_data: *mut u8, len: u32) -> Result<(), Error> {
+
+    /// Reads the data from the given register address of sensor.
+    pub(crate) fn get_regs(&mut self, mut reg_addr: u8, reg_data: *mut u8, len: u32) -> Result<(), Error> {
         unsafe {
             let mut rslt: i8 = 0;
             rslt = null_ptr_check(self);
