@@ -83,7 +83,7 @@ pub struct SensorData {
     pub gas_resistance: libc::c_float,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 pub struct CalibrationData {
     pub par_h1: u16,
@@ -266,35 +266,7 @@ impl<I: Interface> Device<I> {
             amb_temp,
             gas_heater_config: GasHeaterConfig::default(),
             config: DeviceConfig::default(),
-            calib: CalibrationData {
-                par_h1: 0,
-                par_h2: 0,
-                par_h3: 0,
-                par_h4: 0,
-                par_h5: 0,
-                par_h6: 0,
-                par_h7: 0,
-                par_gh1: 0,
-                par_gh2: 0,
-                par_gh3: 0,
-                par_t1: 0,
-                par_t2: 0,
-                par_t3: 0,
-                par_p1: 0,
-                par_p2: 0,
-                par_p3: 0,
-                par_p4: 0,
-                par_p5: 0,
-                par_p6: 0,
-                par_p7: 0,
-                par_p8: 0,
-                par_p9: 0,
-                par_p10: 0,
-                t_fine: 0.,
-                res_heat_range: 0,
-                res_heat_val: 0,
-                range_sw_err: 0,
-            },
+            calib: CalibrationData::default(),
             interface_result: 0,
             info_msg: 0,
         };
