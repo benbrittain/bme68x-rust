@@ -12,3 +12,9 @@ pub use bme68x::{
 
 mod interface;
 pub use interface::{Error, Interface};
+
+/// Default I2C Address of the sensor
+pub const I2C_ADDR: u8 = 0x76;
+
+/// Variant I2C Address of the sensor
+pub const I2C_ADDR_VARIANT: u8 = 0x77;
