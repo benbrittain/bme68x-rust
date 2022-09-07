@@ -3,19 +3,21 @@ use crate::bme68x::*;
 /// BME68X Errors
 #[derive(Debug)]
 pub enum Error {
-    /// Null pointer
+    /// Null pointer.
     NullPointer,
-    /// Communication failure
+    /// Communication failure.
     CommunicationFailure,
-    /// Incorrect length parameter
+    /// Incorrect length parameter.
     IncorrectLengthParameter,
-    /// Device not found
+    /// Device not found.
     DeviceNotFound,
-    /// Self test error
+    /// Self test error.
     SelfTestError,
-    /// No new data found
+    /// No new data found.
     NoNewDataFound,
-    /// Unknown error code
+    /// Heater has not heated yet.
+    UnstableHeater,
+    /// Unknown error code.
     Unknown,
 }
 

@@ -567,9 +567,29 @@ impl<I: Interface> Device<I> {
 
     /// Reads the pressure, temperature humidity and gas data from the sensor,
     /// compensates the data and store it in the SensorData structure instance passed by the user.
-    ///
-    /// TODO refactor and make safer.
-    pub fn get_data(
+    pub fn get_data(&mut self, op_mode: OperationMode) -> Result<SensorData, Error> {
+        let mut n_fields = 0;
+        let mut data: SensorData = SensorData::default();
+        unsafe {
+            self.raw_get_data(op_mode as u8, &mut data, &mut n_fields)
+                .unwrap();
+        }
+        // TODO I think that this is all that's needed to verify safety
+        // but look into this more.
+        if n_fields != 0 {
+            if data.status == 0xA0 {
+                Err(Error::UnstableHeater)
+            } else if data.status == 0xB0 {
+                Ok(data)
+            } else {
+                Err(Error::Unknown)
+            }
+        } else {
+            Err(Error::NoNewDataFound)
+        }
+    }
+
+    unsafe fn raw_get_data(
         &mut self,
         op_mode: u8,
         data: *mut SensorData,
